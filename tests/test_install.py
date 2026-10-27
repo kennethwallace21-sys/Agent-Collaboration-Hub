@@ -3,9 +3,15 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+
+# Test subprocesses must never notify the OS or wake a real agent session.
+os.environ["COLLAB_DISABLE_EXTERNAL_DELIVERY"] = "1"
+os.environ["COLLAB_ALERTS_AUTOSTART"] = "0"
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("board_install", ROOT / "install.py")
@@ -67,6 +73,21 @@ class InstallTests(unittest.TestCase):
         self.assertTrue((self.app / "examples" / "client.json").is_file())
         self.assertFalse((self.app / "examples" / "private.db").exists())
 
+    @unittest.skipIf(os.name == "nt", "POSIX executable modes do not apply on Windows")
+    def test_installed_shell_entrypoints_execute_when_source_modes_are_lost(self):
+        for name in ("collab", "alerts", "ask", "advisory"):
+            source = self.source / name
+            source.write_text("#!/bin/sh\nprintf '%s\\n' entrypoint-ready\n", encoding="utf-8")
+            source.chmod(0o644)
+        self.install()
+        for name in ("collab", "alerts", "ask", "advisory"):
+            with self.subTest(entrypoint=name):
+                installed = self.app / name
+                self.assertEqual(installed.stat().st_mode & 0o777, 0o755)
+                self.assertEqual((self.source / name).stat().st_mode & 0o777, 0o644)
+                result = subprocess.run([str(installed)], capture_output=True, text=True, check=True)
+                self.assertEqual(result.stdout.strip(), "entrypoint-ready")
+
     def test_allowlist_excludes_database_and_credentials_and_preserves_workspace(self):
         self.data.mkdir()
         sentinel = self.data / "credentials.json"
@@ -107,9 +128,37 @@ class InstallTests(unittest.TestCase):
         with (bundle / "Contents" / "Info.plist").open("rb") as handle:
             info = plistlib.load(handle)
         launcher = bundle / "Contents" / "MacOS" / info["CFBundleExecutable"]
+        for key in ("NSDesktopFolderUsageDescription", "NSDocumentsFolderUsageDescription",
+                    "NSDownloadsFolderUsageDescription"):
+            self.assertIn("workspace you chose", info[key])
         self.assertTrue(os.access(launcher, os.X_OK))
         self.assertIn("--workspace", launcher.read_text())
         self.assertIn(str(self.data), launcher.read_text())
+
+    @unittest.skipIf(os.name == "nt", "macOS app entrypoint is a POSIX shell script")
+    def test_mac_bundle_entrypoint_runs_with_sparse_finder_path_and_logs(self):
+        self.app.mkdir()
+        (self.app / "scripts").mkdir()
+        stub = self.app / "scripts" / "desktop.py"
+        stub.write_text(
+            "import json,os,sys\nfrom pathlib import Path\n"
+            "workspace=Path(sys.argv[sys.argv.index('--workspace')+1])\n"
+            "(workspace/'started.json').write_text(json.dumps({'argv':sys.argv[1:],'path':os.environ.get('PATH')}))\n"
+            "print('launcher stdout')\nprint('launcher stderr',file=sys.stderr)\n", encoding="utf-8")
+        result = shortcuts.create_shortcut(self.app, self.data, self.desktop, sys.executable, "darwin")
+        bundle = Path(result["path"])
+        with (bundle / "Contents" / "Info.plist").open("rb") as handle:
+            info = plistlib.load(handle)
+        entrypoint = bundle / "Contents" / "MacOS" / info["CFBundleExecutable"]
+        completed = subprocess.run([str(entrypoint)], cwd="/", env={"PATH": "/usr/bin:/bin:/usr/sbin:/sbin"},
+                                   capture_output=True, text=True, timeout=15)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        started = json.loads((self.data / "started.json").read_text())
+        self.assertEqual(started["argv"], ["--workspace", str(self.data)])
+        self.assertEqual(started["path"], "/usr/bin:/bin:/usr/sbin:/sbin")
+        log = (self.data / "state" / "desktop-launch.log").read_text()
+        self.assertIn("launcher stdout", log)
+        self.assertIn("launcher stderr", log)
 
     def test_windows_fallback_is_actual_command_shortcut(self):
         with patch.object(shortcuts.shutil, "which", return_value=None):

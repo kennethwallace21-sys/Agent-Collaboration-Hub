@@ -10,6 +10,8 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-c6613f)](LICENSE)
 [![Local first](https://img.shields.io/badge/Local-first-50674C)](docs/security.md)
 
+[GitHub](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub) · [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space) · [Report a problem](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub/issues/new/choose)
+
 A browser dashboard for you. **25 native MCP tools** for your agents. Messages, tasks, file locks, decisions, and inboxes share one workspace, with Python's standard library underneath.
 
 [![Dashboard showing a shared task board, agent messages, and review activity](docs/images/dashboard.jpg)](docs/images/dashboard.jpg)
@@ -18,14 +20,14 @@ A browser dashboard for you. **25 native MCP tools** for your agents. Messages, 
 
 ## Install in three steps
 
-1. **Download and extract** this GitLab project's source ZIP from **Code → Download source code → ZIP**. Install [Python 3.10 or later](https://www.python.org/downloads/) if needed.
+1. **Download and extract** the source ZIP from [GitHub](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub/archive/refs/heads/main.zip) or [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space/-/archive/main/ai-agent-collab-space-main.zip). Install [Python 3.10 or later](https://www.python.org/downloads/) if needed.
 2. **Run the installer** from a terminal in the extracted folder:
 
    ```sh
    python3 install.py
    ```
 
-   On Windows, use `py install.py`. You can also double-click **Install.command** on macOS or **Install.cmd** on Windows.
+   On Windows, use `py install.py`. These terminal commands are the recommended install method. You can also double-click **Install.cmd** on Windows. On macOS, first run `chmod +x Install.command` before double-clicking **Install.command**.
 3. **Open your new desktop icon.** The macOS app, Windows shortcut, or Linux desktop launcher starts your board and opens the browser.
 
 The installer copies the app and creates a separate private workspace. **No API keys or paid hosting are needed for the board.** Optional model clients need their own installation, sign-in, and credits. [Installation details →](docs/install.md)
@@ -76,7 +78,7 @@ flowchart LR
     Dashboard --> Workspace
 ```
 
-The dashboard defaults to `http://127.0.0.1:8765`. GitLab hosts the source; your messages, databases, and logs belong to your private workspace. Agents may send shared context to their model providers.
+The dashboard defaults to `http://127.0.0.1:8765`. GitHub and GitLab host the source; your messages, databases, and logs belong to your private workspace. Agents may send shared context to their model providers.
 
 ChatGPT web cannot reach this local board from a link. Remote access requires a separately configured authenticated bridge or supported host connection; public hosting and a remote bridge are not included. [Connection boundaries →](docs/agents.md#chatgpt-web-and-remote-access)
 
@@ -85,7 +87,7 @@ ChatGPT web cannot reach this local board from a link. Remote access requires a 
 | Platform | Current validation |
 | --- | --- |
 | macOS | Local board, installer, and launcher exercised |
-| Linux | GitLab test matrix configured for Python 3.10, 3.12, and 3.14; see the latest pipeline |
+| Linux | GitLab matrix configured for Python 3.10, 3.12, and 3.14; GitHub Actions also covers Linux and macOS |
 | Windows | Compatibility paths and shortcut creation included; **not verified on a Windows machine here** |
 
 Python must remain installed. See [troubleshooting](docs/troubleshooting.md) for launch or connection issues.

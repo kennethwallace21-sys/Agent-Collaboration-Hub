@@ -656,6 +656,14 @@ def briefing(conn, agent: str) -> str:
 # Delivery
 # ---------------------------------------------------------------------------
 
+EXTERNAL_DELIVERY_DISABLED = "External delivery disabled by COLLAB_DISABLE_EXTERNAL_DELIVERY"
+
+
+def external_delivery_disabled() -> bool:
+    """Keep isolated tests/inbox-only runs away from OS and agent sessions."""
+    return os.environ.get("COLLAB_DISABLE_EXTERNAL_DELIVERY") == "1"
+
+
 def find_executable(env_var: str, name: str, candidates) -> str | None:
     for path in (os.environ.get(env_var), shutil.which(name), *candidates):
         if path and os.path.isfile(path) and os.access(path, os.X_OK):
@@ -664,6 +672,8 @@ def find_executable(env_var: str, name: str, candidates) -> str | None:
 
 
 def push_codex(thread_id: str, text: str) -> tuple[bool, str]:
+    if external_delivery_disabled():
+        return False, EXTERNAL_DELIVERY_DISABLED
     if not thread_id:
         return False, "no Codex thread registered (./alerts register codex --via codex --target <thread-id>)"
     exe = find_executable("COLLAB_CODEX_BIN", "codex", CODEX_CANDIDATES)
@@ -680,6 +690,8 @@ def push_codex(thread_id: str, text: str) -> tuple[bool, str]:
 
 
 def push_macos(title: str, text: str, subtitle: str = "") -> tuple[bool, str]:
+    if external_delivery_disabled():
+        return False, EXTERNAL_DELIVERY_DISABLED
     script = ["-e", "on run argv",
               "-e", 'display notification (item 1 of argv) with title (item 2 of argv) '
                     'subtitle (item 3 of argv) sound name "Glass"',
@@ -693,6 +705,8 @@ def push_macos(title: str, text: str, subtitle: str = "") -> tuple[bool, str]:
 
 
 def push_command(template: str, agent: str, title: str, text: str) -> tuple[bool, str]:
+    if external_delivery_disabled():
+        return False, EXTERNAL_DELIVERY_DISABLED
     if not template:
         return False, "no command registered"
     argv = [part.replace("{agent}", agent).replace("{title}", title).replace("{message}", text)
@@ -749,12 +763,14 @@ def is_active(conn, agent: str, now: float) -> bool:
 
 def remind_human(conn, agent: str, pending, now: float, reason: str, force: bool = False):
     """Tell the human about alerts no tool can push to `agent`."""
+    if external_delivery_disabled():
+        return None
     if not force and now - min(p["created_epoch"] for p in pending) < UNREACHABLE_GRACE_SECONDS:
         return None
     upto = int(meta_get(conn, f"reminded_upto:{agent}", "0") or 0)
     fresh = [p for p in pending if p["id"] > upto]
     human = load_targets(conn).get("human")
-    if not fresh or not human or human["muted"]:
+    if not fresh or not human or human["muted"] or human["via"] != "macos":
         return None
     urgent = any(p["priority"] == "urgent" for p in fresh)
     if not (force or urgent) and seconds_since(conn, f"reminded_at:{agent}", now) < REMINDER_COOLDOWN_SECONDS:
@@ -769,6 +785,8 @@ def remind_human(conn, agent: str, pending, now: float, reason: str, force: bool
 
 
 def deliver(conn, only: str | None = None, force: bool = False) -> dict:
+    if external_delivery_disabled():
+        return {}
     if meta_get(conn, "paused") == "1" and not force:
         return {}
     now = time.time()
@@ -780,9 +798,11 @@ def deliver(conn, only: str | None = None, force: bool = False) -> dict:
         if not pending or (not force and is_active(conn, agent, now)):
             continue
         via = t["via"]
+        if via == "none":
+            continue  # inbox-only also applies to urgent/forced notifications
         if via == "antigravity" and seconds_since(conn, f"relay:{agent}", now) < RELAY_STALE_SECONDS:
             continue  # the agent's own relay is delivering
-        if via in ("hook", "none", "antigravity"):
+        if via in ("hook", "antigravity"):
             result = remind_human(conn, agent, pending, now, f"{agent} is reached via {via}", force)
             if result:
                 results[agent] = result
@@ -968,6 +988,9 @@ def run_hook(client: str, agent: str, event: str) -> int:
 
 def run_relay(agent: str, conversation: str, interval: float) -> int:
     """Run from the agent's own Antigravity terminal; uses the session environment Antigravity provides."""
+    if external_delivery_disabled():
+        print("relay: " + EXTERNAL_DELIVERY_DISABLED, file=sys.stderr)
+        return 0
     conversation = conversation or os.environ.get("ANTIGRAVITY_CONVERSATION_ID", "")
     if not os.environ.get("ANTIGRAVITY_LS_ADDRESS") or not conversation:
         print("relay: start this from the agent's own Antigravity terminal "
@@ -990,6 +1013,8 @@ def run_relay(agent: str, conversation: str, interval: float) -> int:
             pending = [p for p in unseen(conn, agent, wake_only=True, limit=50) if p["pushed_at"] is None]
             urgent = any(p["priority"] == "urgent" for p in pending)
             if pending and not is_active(conn, agent, now) and (urgent or now - last_push >= COOLDOWN_SECONDS):
+                if external_delivery_disabled():
+                    return 0
                 n = len(pending)
                 try:
                     r = subprocess.run([exe, "send-message", f"--title=Board: {n} alert{'s' if n != 1 else ''} for @{agent}",

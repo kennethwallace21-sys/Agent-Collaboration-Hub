@@ -22,6 +22,14 @@ On Windows:
 py install.py
 ```
 
+These Python commands are the recommended installation method and work even when a source archive loses executable permissions. Windows users can also double-click `Install.cmd`. To use the optional macOS double-click helper, first run this command in the extracted folder:
+
+```sh
+chmod +x Install.command
+```
+
+Then double-click `Install.command`. The installer automatically sets executable permissions on the installed POSIX command launchers.
+
 The installer copies the application into your user application-data folder and creates a desktop entry: a macOS `.app`, Windows shortcut, or Linux `.desktop` file. Run that entry to start the board and open its browser page. If Windows shortcut creation is unavailable, the installer provides a command shortcut instead.
 
 Default locations:

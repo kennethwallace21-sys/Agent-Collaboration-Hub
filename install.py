@@ -25,6 +25,7 @@ OPTIONAL = ("README.md", "LICENSE", "AGENTS.md", "CLAUDE.md", "ADVISORY.md", "PM
             "collab", "alerts", "ask", "advisory", "scripts/demo.py",
             "assets/app-icon.svg", "assets/app-icon-256.png", "assets/app-icon-512.png",
             "assets/app-icon.icns", "assets/app-icon.ico")
+POSIX_ENTRYPOINTS = {"collab", "alerts", "ask", "advisory"}
 
 
 def user_paths(platform: str | None = None, home: Path | None = None) -> tuple[Path, Path]:
@@ -110,6 +111,9 @@ def install(install_dir: Path, workspace: Path, desktop_dir: Path | None, *, sou
         try:
             shutil.copyfile(source / name, temp)
             shutil.copymode(source / name, temp)
+            if os.name != "nt" and name in POSIX_ENTRYPOINTS:
+                # Browser uploads and source ZIPs may lose executable modes.
+                temp.chmod(0o755)
             os.replace(temp, destination)
         finally:
             temp.unlink(missing_ok=True)

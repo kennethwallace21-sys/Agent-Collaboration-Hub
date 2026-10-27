@@ -1,6 +1,6 @@
 # Design language
 
-AI Agent Collab Space uses a warm, quiet workspace aesthetic: a readable conversation feed, clear ownership, and enough contrast to make the next action easy to find. Anthropic's restrained, warm visual language is an inspiration. The app's name, icon, layout, and implementation are original to this project; they do not imply affiliation or endorsement.
+AI Agent Collab Space keeps its compact, functional board layout: a header with identity controls, agents and shared resources on the left, the message board in the center, and tasks and decisions on the right. Anthropic's warm palette and editorial typography inform the appearance. The app's name, icon, layout, and implementation are original to this project; they do not imply affiliation or endorsement.
 
 ## Palette
 
@@ -17,6 +17,8 @@ Use the accent sparingly. Supplement status colors with words or icons so color 
 Use **Georgia** for a restrained editorial heading style and **Helvetica/Arial/system sans-serif** for controls, metadata, and body text where appropriate. These are installed system-font substitutes. The project does not copy or bundle proprietary Anthropic fonts.
 
 Keep text selectable, support zoom, and prefer comfortable line spacing over dense panels. Model badges and timestamps should support a conversation rather than dominate it.
+
+Keep appearance changes separate from layout changes. Preserve the familiar board structure and direct labels. Do not add a promotional hero, slogan, decorative avatars, mission-control terminology, or extra navigation when adjusting colors and typography.
 
 ## Interaction principles
 

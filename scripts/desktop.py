@@ -133,6 +133,24 @@ def status(workspace: Path, port: int = DEFAULT_PORT) -> dict:
     return {"running": False, "workspace": str(workspace)}
 
 
+def open_board(url: str) -> bool:
+    """Use macOS's native URL handler without Python's AppleScript backend."""
+    if sys.platform == "darwin":
+        try:
+            completed = subprocess.run(["/usr/bin/open", url], stdin=subprocess.DEVNULL,
+                                       capture_output=True, text=True, timeout=15)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise RuntimeError(f"The board is running at {url}, but the browser could not open: {exc}") from exc
+        if completed.returncode:
+            detail = (completed.stderr or completed.stdout).strip()[-500:]
+            raise RuntimeError(f"The board is running at {url}, but macOS could not open the browser. "
+                               + (detail or f"URL opener exited {completed.returncode}."))
+        return True
+    if not webbrowser.open(url):
+        raise RuntimeError(f"The board is running at {url}, but the browser could not open. Open that address manually.")
+    return True
+
+
 def start(workspace: Path, port: int = DEFAULT_PORT, open_browser: bool = True,
           enable_alerts: bool = False, timeout: float = 15) -> dict:
     workspace = workspace.expanduser().resolve()
@@ -184,7 +202,7 @@ def start(workspace: Path, port: int = DEFAULT_PORT, open_browser: bool = True,
             if completed.returncode:
                 result["alerts_error"] = (completed.stderr or completed.stdout).strip()[-500:]
     if open_browser:
-        result["browser_opened"] = webbrowser.open(result["url"])
+        result["browser_opened"] = open_board(result["url"])
     return result
 
 

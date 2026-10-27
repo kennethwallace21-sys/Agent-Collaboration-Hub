@@ -8,6 +8,11 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+from types import SimpleNamespace
+
+# Test subprocesses must never notify the OS or wake a real agent session.
+os.environ["COLLAB_DISABLE_EXTERNAL_DELIVERY"] = "1"
+os.environ["COLLAB_ALERTS_AUTOSTART"] = "0"
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("desktop_launcher", ROOT / "scripts" / "desktop.py")
@@ -89,10 +94,21 @@ class DesktopTests(unittest.TestCase):
 
     def test_browser_opens_matching_local_url_only(self):
         first = self.launch()
-        with patch.object(desktop.webbrowser, "open", return_value=True) as browser:
+        with patch.object(desktop, "open_board", return_value=True) as browser:
             result = desktop.start(self.workspace, self.port)
-        browser.assert_called_once_with(first["url"])
+            again = desktop.start(self.workspace, self.port)
+        self.assertEqual(browser.call_count, 2)
+        for call in browser.call_args_list:
+            self.assertEqual(call.args, (first["url"],))
+        self.assertEqual(result["pid"], again["pid"])
         self.assertTrue(result["browser_opened"])
+
+    def test_browser_failure_keeps_running_board_available(self):
+        first = self.launch()
+        with patch.object(desktop, "open_board", side_effect=RuntimeError("Browser failed")):
+            with self.assertRaisesRegex(RuntimeError, "Browser failed"):
+                desktop.start(self.workspace, self.port)
+        self.assertEqual(desktop.status(self.workspace, self.port)["pid"], first["pid"])
 
     def test_simultaneous_clicks_start_one_process(self):
         # Separate Python launchers exercise the OS file lock, not a thread mock.
@@ -112,6 +128,30 @@ class DesktopTests(unittest.TestCase):
             self.assertEqual(process.returncode, 0, error)
             results.append(json.loads(output))
         self.assertEqual(results[0]["pid"], results[1]["pid"])
+
+
+class BrowserOpenTests(unittest.TestCase):
+    def test_mac_opens_native_url_handler_without_applescript_backend(self):
+        with patch.object(desktop.sys, "platform", "darwin"), \
+             patch.object(desktop.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as native, \
+             patch.object(desktop.webbrowser, "open") as browser:
+            self.assertTrue(desktop.open_board("http://127.0.0.1:8765"))
+        self.assertEqual(native.call_args.args[0], ["/usr/bin/open", "http://127.0.0.1:8765"])
+        self.assertFalse(native.call_args.kwargs.get("shell", False))
+        browser.assert_not_called()
+
+    def test_mac_browser_failure_reports_running_board_address(self):
+        with patch.object(desktop.sys, "platform", "darwin"), \
+             patch.object(desktop.subprocess, "run", return_value=SimpleNamespace(
+                 returncode=1, stdout="", stderr="No application can open this URL")):
+            with self.assertRaisesRegex(RuntimeError, "http://127.0.0.1:8765.*macOS could not open"):
+                desktop.open_board("http://127.0.0.1:8765")
+
+    def test_other_platform_browser_failure_is_explicit(self):
+        with patch.object(desktop.sys, "platform", "linux"), \
+             patch.object(desktop.webbrowser, "open", return_value=False):
+            with self.assertRaisesRegex(RuntimeError, "Open that address manually"):
+                desktop.open_board("http://127.0.0.1:8765")
 
 
 class InstalledAppIntegrationTests(unittest.TestCase):

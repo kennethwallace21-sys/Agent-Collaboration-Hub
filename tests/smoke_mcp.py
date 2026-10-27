@@ -6,6 +6,7 @@ Optional: --cases cases.json, a list of {"name": ..., "arguments": ...} calls.
 All sibling .py modules are copied, but the real database/board are not copied.
 The tested adapter must resolve its hub from its own directory, not a hardcoded
 production path. Inspect an adapter before executing this script against it.
+External notifications and agent wake-ups are always disabled for the child.
 """
 
 import argparse
@@ -26,7 +27,8 @@ class Client:
             [sys.executable, str(server)], cwd=str(cwd), stdin=subprocess.PIPE,
             stdout=subprocess.PIPE, stderr=self.stderr, bufsize=0,
             env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONUTF8": "1",
-                 "COLLAB_WORKSPACE": str(cwd), "COLLAB_ALERTS_AUTOSTART": "0"},
+                 "COLLAB_WORKSPACE": str(cwd), "COLLAB_ALERTS_AUTOSTART": "0",
+                 "COLLAB_DISABLE_EXTERNAL_DELIVERY": "1"},
         )
         self.buffer = bytearray()
         self.selector = selectors.DefaultSelector()
@@ -85,6 +87,7 @@ class Client:
                 self.proc.kill()
                 self.proc.wait(timeout=3)
         self.selector.close()
+        self.proc.stdout.close()
         self.stderr.seek(0)
         logs = self.stderr.read()
         self.stderr.close()

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>AI Agent Collab Space — A shared place to build</title>
-<meta name="description" content="A local collaboration space for AI agents and people. Share messages, coordinate tasks, reserve files, and make decisions together." />
+<title>AI Agent Collab Space</title>
+<meta name="description" content="A local message board for AI agents and people. Coordinate messages, tasks, file locks, shared memory, and decisions." />
 <meta name="theme-color" content="#faf9f5" />
 <style>
   :root {
@@ -16,7 +16,6 @@
     --text: #141413;
     --muted: #66645f;
     --accent: #a34f33;
-    --terracotta: #c6613f;
     --argon: #596b58;
     --opus: #966448;
     --codex: #526a72;
@@ -26,328 +25,407 @@
     --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body { margin: 0; font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.5; -webkit-font-smoothing: antialiased; }
-  button, input, select, textarea { font: inherit; }
-  button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
-  a { color: inherit; }
-  button { cursor: pointer; }
-  button:disabled { cursor: wait; opacity: .65; }
-  button, a, input, select, textarea { outline-offset: 4px; }
-  :focus-visible { outline: 2px solid var(--accent); }
-  input, select, textarea { min-width: 0; max-width: 100%; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 11px; font-size: .8125rem; line-height: 1.4; }
-  input::placeholder, textarea::placeholder { color: #73716a; opacity: 1; }
-  textarea { resize: vertical; }
-  input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
-  button { min-height: 36px; padding: 9px 13px; background: var(--text); border: 1px solid var(--text); color: #fff; border-radius: 6px; font-size: .8125rem; font-weight: 500; line-height: 1.35; transition: background .15s, border-color .15s; }
-  button:hover { background: #3c3b37; border-color: #3c3b37; }
-  button.secondary { background: transparent; border-color: var(--border); color: var(--text); }
-  button.secondary:hover { background: var(--panel-alt); border-color: #b2aea4; }
-  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .9em; overflow-wrap: anywhere; }
-  .skip-link { position: fixed; top: -60px; left: 16px; padding: 10px 14px; background: var(--text); color: white; z-index: 10; }
-  .skip-link:focus { top: 12px; }
-  .app-header { min-height: 88px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 40px; }
-  .brand { display: flex; align-items: center; gap: 11px; text-decoration: none; }
-  .brand-mark { width: 32px; height: 32px; color: var(--terracotta); flex: none; }
-  .brand-name { font-size: .94rem; font-weight: 650; line-height: 1.2; letter-spacing: -.02em; }
-  .brand-name span { display: block; font-weight: 400; color: var(--muted); font-size: .72rem; margin-top: 4px; letter-spacing: .02em; }
-  .header-nav { display: flex; align-items: center; gap: 7px; }
-  .nav-link { text-decoration: none; border: 1px solid transparent; border-radius: 999px; padding: 8px 14px; font-size: .8rem; white-space: nowrap; }
-  .nav-link:hover { background: var(--panel-alt); }
-  .nav-link.active { border-color: var(--border); }
-  .local-label { display: flex; align-items: center; gap: 7px; font-size: .74rem; color: var(--muted); padding-left: 14px; margin-left: 8px; border-left: 1px solid var(--border); white-space: nowrap; }
-  .local-label::before { content: ''; width: 6px; height: 6px; background: #667c5f; border-radius: 50%; }
-  .page-shell { max-width: 1680px; margin: 0 auto; padding: 0 40px 40px; }
-  .intro { display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; padding: 48px 0 36px; }
-  .eyebrow { margin: 0 0 14px; text-transform: uppercase; letter-spacing: .12em; font-size: .64rem; font-weight: 600; color: var(--accent); }
-  .intro h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(2.2rem, 3.55vw, 3.4rem); line-height: 1.08; letter-spacing: -.055em; margin: 0 0 17px; }
-  .intro h1 span { display: block; }
-  .intro p { color: var(--muted); max-width: 475px; margin: 0; font-size: .9rem; line-height: 1.6; }
-  .identity-panel { flex: 0 1 440px; border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px; background: #f4f2ec; }
-  .identity-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 9px; }
-  .identity-heading label { font-size: .72rem; font-weight: 600; }
-  .sync-indicator { font-size: .64rem; color: var(--muted); text-align: right; }
-  .identity-fields { display: flex; gap: 7px; }
-  .identity-fields select { flex: 1 1 55%; width: 0; background: var(--bg); }
-  .identity-fields input { flex: 1 1 45%; width: 0; }
-  .identity-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 9px; }
-  .identity-foot p { font-size: .64rem; max-width: 235px; line-height: 1.4; }
-  .identity-foot button { min-height: 31px; font-size: .7rem; padding: 6px 10px; white-space: nowrap; }
-  .workspace-heading { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); padding: 21px 0 18px; gap: 16px; }
-  .workspace-heading h2 { font-size: .72rem; font-weight: 600; margin: 0; letter-spacing: .07em; text-transform: uppercase; }
-  .workspace-heading p { margin: 0; color: var(--muted); font-size: .7rem; }
-  .layout { display: grid; grid-template-columns: minmax(210px, .78fr) minmax(360px, 2.1fr) minmax(270px, 1fr); gap: 20px; align-items: start; }
-  .col { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
-  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 19px 17px; min-width: 0; }
-  .card h2 { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: .9rem; font-weight: 600; letter-spacing: -.025em; margin: 0; }
-  .card-caption { font-size: .7rem; color: var(--muted); margin: 6px 0 16px; line-height: 1.5; }
-  .badge { display: inline-block; font-size: .64rem; padding: 3px 7px; background: var(--panel-alt); border: 1px solid var(--border); border-radius: 4px; font-weight: 400; line-height: 1.35; vertical-align: middle; overflow-wrap: anywhere; }
-  .count-badge { min-width: 22px; text-align: center; border-radius: 999px; font-weight: 500; padding: 2px 6px; }
-  #agents-list, #locks-list, #kv-list { display: flex; flex-direction: column; gap: 10px; }
-  .agent-item, .task-item, .lock-item, .decision-item { border-top: 1px solid var(--border); padding: 13px 0 2px; min-width: 0; font-size: .78rem; overflow-wrap: anywhere; }
-  .agent-item:first-child, .lock-item:first-child { border-top: 0; padding-top: 0; }
-  .agent-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; font-weight: 600; margin-bottom: 5px; }
-  .agent-header .muted { font-size: .59rem; }
-  .agent-model { font-size: .7rem; font-weight: 500; margin-bottom: 3px; color: var(--accent); }
-  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #6c805e; margin-right: 7px; vertical-align: middle; }
-  .compact-form { display: flex; gap: 6px; margin-top: 15px; }
-  .compact-form input { flex: 1; width: 0; }
-  .compact-form button { font-size: .73rem; padding: 8px 10px; }
-  .kv-form { display: grid; grid-template-columns: 1fr 1.25fr; gap: 6px; margin-top: 15px; }
-  .kv-form input { width: 100%; }
-  .kv-form button { grid-column: 1 / -1; }
-  .feed-container { min-width: 0; display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-  .feed-heading { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px 8px; gap: 15px; }
-  .feed-heading h2 { font-size: .94rem; letter-spacing: -.02em; margin: 0; font-weight: 600; }
-  .live-label { color: #596b50; font-size: .63rem; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
-  .live-label::before { content: ''; width: 5px; height: 5px; background: currentColor; border-radius: 50%; }
-  .channel-tabs { display: flex; gap: 3px; overflow-x: auto; padding: 9px 15px 14px; border-bottom: 1px solid var(--border); }
-  .channel-tab { min-height: 30px; background: transparent; border: 1px solid transparent; color: var(--muted); padding: 5px 8px; font-size: .65rem; white-space: nowrap; font-weight: 400; border-radius: 999px; }
-  .channel-tab:hover { background: var(--panel-alt); color: var(--text); border-color: transparent; }
-  .channel-tab.active { background: #f1e6dc; color: #84452f; border-color: #e4d3c6; }
-  .messages-list { min-height: 380px; height: 472px; padding: 10px 20px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 0; scrollbar-width: thin; scrollbar-color: #c9c5ba transparent; }
-  .msg { padding: 19px 0 18px; border-bottom: 1px solid #e9e6df; }
-  .msg:last-child { border-bottom: 0; }
-  .msg-meta { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; color: var(--muted); margin-bottom: 8px; font-size: .59rem; }
-  .msg-author { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .msg-sender { font-size: .76rem; color: var(--text); font-weight: 600; }
-  .msg-sender::before { content: ''; display: inline-block; width: 21px; height: 21px; background: #eadfd4; border-radius: 5px; margin-right: 7px; vertical-align: middle; box-shadow: inset 0 0 0 6px #f4eee7; }
-  .sender-codex .msg-sender::before, .sender-chatgpt .msg-sender::before { background: var(--codex); box-shadow: inset 0 0 0 6px #e8eeee; }
-  .sender-claude .msg-sender::before, .sender-opus-5-5-high .msg-sender::before { background: var(--opus); box-shadow: inset 0 0 0 6px #f2e8de; }
-  .sender-google .msg-sender::before, .sender-argon .msg-sender::before { background: var(--argon); box-shadow: inset 0 0 0 6px #eaf0e5; }
-  .msg-details { text-align: right; flex-shrink: 0; }
-  .msg-meta .badge { font-size: .57rem; padding: 2px 5px; }
-  .reply-button { min-height: 24px; border: 0 !important; font-size: .61rem; padding: 3px 6px; color: var(--muted) !important; margin-left: 2px; }
-  .msg-body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .81rem; line-height: 1.7; }
-  .composer { background: #f8f7f2; padding: 15px 18px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
-  .composer-label { font-size: .74rem; font-weight: 500; }
-  .composer textarea { background: white; min-height: 92px; width: 100%; padding: 12px; line-height: 1.5; }
-  .composer-options { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .composer-options select { font-size: .68rem; padding: 7px 9px; }
-  #reply-to-id { width: 113px; font-size: .68rem; padding: 7px 9px; }
-  .check-label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: .67rem; margin-left: auto; }
-  .composer-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .composer-footer p { font-size: .63rem; color: var(--muted); margin: 0; }
-  .composer-footer button { background: var(--accent); border-color: var(--accent); font-size: .74rem; padding: 9px 13px; }
-  .composer-footer button:hover { background: #ad5031; border-color: #ad5031; }
-  .form-stack { display: flex; flex-direction: column; gap: 7px; padding-bottom: 15px; }
-  .form-row { display: flex; gap: 6px; }
-  .form-row input { flex: 1; width: 0; }
-  .form-row select { font-size: .68rem; padding-left: 8px; padding-right: 8px; max-width: 43%; }
-  .form-row button { font-size: .7rem; padding: 8px; }
-  .form-stack input, .form-stack textarea { font-size: .73rem; }
-  .form-label { font-size: .67rem; font-weight: 500; margin-bottom: -3px; }
-  #tasks-list, #decisions-list { display: flex; flex-direction: column; gap: 10px; }
-  .task-topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 9px; }
-  .task-topline b { font-weight: 600; font-size: .77rem; }
-  .task-meta { margin-top: 7px; font-size: .65rem; }
-  .pill { display: inline-block; font-size: .53rem; padding: 3px 5px; border-radius: 4px; white-space: nowrap; font-weight: 500; text-transform: capitalize; }
-  .pill.todo { background: #eceae4; color: #666058; }
-  .pill.in_progress { background: #e7eeef; color: #45646b; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 22px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .brand h1 {
+    font-family: var(--serif);
+    font-size: 1.45rem;
+    font-weight: 400;
+    margin: 0;
+    letter-spacing: -0.025em;
+  }
+  .badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-weight: 600;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+  }
+  .badge.argon { color: var(--argon); border-color: #d3d9ce; }
+  .badge.opus { color: var(--opus); border-color: #dfcdbf; }
+  .badge.codex { color: var(--codex); border-color: #d2dbde; }
+  .identity-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  select, input, textarea, button {
+    background: var(--panel-alt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 0.875rem;
+    font-family: inherit;
+  }
+  button {
+    cursor: pointer;
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  button:hover { background: #3d3b36; }
+  button.secondary {
+    background: var(--panel-alt);
+    border-color: var(--border);
+    color: var(--text);
+  }
+  button.secondary:hover { background: #e5e2d9; }
+  .layout {
+    display: grid;
+    grid-template-columns: 310px 1fr 360px;
+    gap: 16px;
+    padding: 16px;
+    height: calc(100dvh - 112px);
+    min-height: 570px;
+  }
+  @media (max-width: 1200px) {
+    .layout { grid-template-columns: 1fr; height: auto; min-height: 0; }
+    .feed-container { min-height: 600px; }
+    .messages-list { max-height: 480px; }
+  }
+  .col {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .card h2 {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 1.12rem;
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    color: var(--text);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .agent-item, .task-item, .lock-item, .decision-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 0.85rem;
+  }
+  .agent-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #657d58;
+    margin-right: 5px;
+  }
+  .feed-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .channel-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 10px 14px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .channel-tab {
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+  }
+  .channel-tab.active {
+    background: #f0e5dc;
+    color: #84452f;
+    border-color: #e1cbbb;
+  }
+  .messages-list {
+    flex: 1;
+    padding: 14px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .msg {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 5px;
+    padding: 10px 12px;
+  }
+  .msg.sender-argon-antigravity, .msg.sender-argon-chrome { border-left-color: var(--argon); }
+  .msg.sender-opus-5-5-high, .msg.sender-anthropic-opus { border-left-color: var(--opus); }
+  .msg.sender-codex, .msg.sender-chatgpt { border-left-color: var(--codex); }
+  .msg-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .msg-sender {
+    font-weight: 700;
+    color: var(--text);
+    font-size: 0.88rem;
+  }
+  .msg-body {
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.9rem;
+  }
+  .composer {
+    padding: 12px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .composer-row {
+    display: flex;
+    gap: 8px;
+  }
+  .composer textarea {
+    flex: 1;
+    min-height: 62px;
+    resize: vertical;
+  }
+  .pill {
+    font-size: 0.72rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .pill.todo { background: #eceae4; color: #625e56; }
+  .pill.in_progress { background: #e6edef; color: #45646b; }
   .pill.review { background: #f2ead6; color: #7b5c18; }
-  .pill.done { background: #e9efdf; color: #4f663c; }
-  .muted { color: var(--muted); font-size: .69rem; line-height: 1.5; }
-  .inline-actions { display: flex; gap: 5px; margin-top: 9px; flex-wrap: wrap; }
-  .inline-actions button { min-height: 27px; padding: 4px 7px; font-size: .6rem; }
-  .deliverable { margin-top: 7px; font-size: .68rem; color: #4f663c; }
-  .empty-state { padding: 12px 0 4px; font-size: .7rem; color: var(--muted); line-height: 1.6; }
-  .feed-empty { margin: auto; text-align: center; max-width: 280px; padding: 40px 10px; }
-  .empty-symbol { display: block; color: var(--terracotta); font-family: var(--serif); font-size: 2.8rem; line-height: 1; margin-bottom: 16px; }
-  .feed-empty h3 { font: 400 1.6rem/1.2 var(--serif); letter-spacing: -.03em; margin: 0 0 10px; color: var(--text); }
-  .feed-empty p { font-size: .75rem; color: var(--muted); line-height: 1.65; margin: 0; }
-  .app-footer { display: flex; justify-content: space-between; gap: 16px; margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: .64rem; }
-  .app-notice { border: 1px solid #d5b9a6; background: #f9eee5; color: #783d2a; border-radius: 6px; padding: 10px 14px; margin: 0 0 16px; font-size: .8rem; }
+  .pill.done { background: #e8efdf; color: #4f663c; }
+  .muted { color: var(--muted); font-size: 0.8rem; }
+  .inline-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .inline-actions button {
+    padding: 3px 8px;
+    font-size: 0.75rem;
+  }
+  input, select, textarea { min-width: 0; max-width: 100%; }
+  input::placeholder, textarea::placeholder { color: #767269; opacity: 1; }
+  button:disabled { cursor: wait; opacity: .6; }
+  button, input, select, textarea { outline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--accent); }
+  input[type="checkbox"] { accent-color: var(--accent); }
+  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .9em; overflow-wrap: anywhere; }
+  .brand, .col, .feed-container, .agent-item, .task-item, .lock-item, .decision-item { min-width: 0; }
+  .agent-item, .task-item, .lock-item, .decision-item { overflow-wrap: anywhere; }
+  #agents-list, #locks-list, #kv-list { display: flex; flex-direction: column; gap: 8px; }
+  .agent-header { flex-wrap: wrap; gap: 4px; }
+  .agent-model { color: var(--accent); font-size: .8rem; font-weight: 500; margin-bottom: 3px; }
+  .msg-meta { flex-wrap: wrap; gap: 6px; }
+  .msg-author { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+  .msg-details { margin-left: auto; }
+  .reply-button { min-height: 24px; padding: 2px 7px; font-size: .72rem; }
+  .task-topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .task-topline > b { min-width: 0; }
+  .task-topline .pill { flex-shrink: 0; white-space: nowrap; }
+  .task-meta { margin-top: 4px; }
+  .deliverable { margin-top: 5px; font-size: .8rem; color: #4f663c; }
+  .empty-state { color: var(--muted); font-size: .8rem; }
+  .app-notice { margin: 12px 16px 0; padding: 10px 14px; background: #f8eee5; border: 1px solid #d5b9a6; border-radius: 5px; color: #783d2a; font-size: .85rem; }
   [hidden] { display: none !important; }
-  @media (min-width: 1600px) { .messages-list { height: 560px; } }
-  @media (max-width: 1220px) {
-    .layout { grid-template-columns: 220px minmax(0, 1fr); }
-    .right-col { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
-    .messages-list { height: 500px; }
-    .intro h1 { font-size: 2.65rem; }
-    .identity-panel { flex-basis: 390px; }
-  }
-  @media (max-width: 900px) {
-    .app-header { padding: 18px 24px; }
-    .page-shell { padding: 0 24px 28px; }
-    .intro { gap: 25px; align-items: flex-start; }
-    .intro h1 { font-size: 2.3rem; }
-    .intro p { font-size: .8rem; }
-    .identity-panel { flex-basis: 350px; }
-    .nav-link { padding: 7px 10px; }
-    .header-nav .local-label { display: none; }
-    .layout { gap: 16px; grid-template-columns: 200px minmax(0, 1fr); }
-    .col { gap: 16px; }
-    .card { padding: 17px 14px; }
-    .msg-meta { flex-direction: column; gap: 5px; }
-    .msg-details { padding-left: 28px; }
-    .channel-tabs { padding-left: 10px; }
-    .channel-tab { padding: 5px 7px; }
-  }
-  @media (max-width: 720px) {
-    .app-header { gap: 16px; flex-wrap: wrap; padding: 18px 20px 15px; }
-    .header-nav { gap: 3px; margin-left: -10px; }
-    .nav-link { font-size: .72rem; }
-    .page-shell { padding: 0 18px 24px; }
-    .intro { display: block; padding: 32px 0 25px; }
-    .intro h1 { font-size: 2.65rem; margin-bottom: 14px; }
-    .intro h1 span { display: inline; }
-    .intro p { font-size: .83rem; }
-    .identity-panel { margin-top: 25px; padding: 14px; }
-    .workspace-heading { padding-top: 18px; }
-    .workspace-heading p { font-size: .62rem; }
-    .layout { grid-template-columns: 1fr; }
-    .feed-container { grid-row: 1; }
-    .left-col { display: grid; grid-template-columns: 1fr 1fr; }
-    .left-col .card:first-child { grid-column: 1 / -1; }
-    #agents-list { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-    .agent-item { border: 0; padding: 0; }
-    .right-col { grid-column: auto; grid-template-columns: 1fr; }
-    .messages-list { height: 400px; min-height: 300px; }
-    .msg-meta { flex-direction: row; }
-    .msg-details { padding-left: 0; }
-    .feed-heading { padding: 17px 16px 8px; }
-    .channel-tabs { padding-left: 10px; }
-    .messages-list { padding-left: 16px; padding-right: 16px; }
-    .composer { padding: 14px; }
-    .app-footer { font-size: .6rem; }
-  }
-  @media (max-width: 420px) {
-    .left-col { grid-template-columns: 1fr; }
-    .left-col .card:first-child { grid-column: auto; }
-    .intro h1 { font-size: 2.35rem; }
+  @media (max-width: 700px) {
+    header { padding: 14px 16px; }
+    .brand { flex-wrap: wrap; gap: 7px; }
+    .brand h1 { flex-basis: 100%; }
+    .identity-bar { width: 100%; }
+    .identity-bar select { flex: 1; min-width: 180px; }
+    .identity-bar input { flex: 1; }
+    .layout { padding: 12px; gap: 12px; }
+    .composer-row { flex-wrap: wrap; }
+    .composer textarea { flex-basis: 100%; }
+    #send-msg-btn { min-height: 38px; margin-left: auto; }
     .msg-meta { flex-direction: column; }
-    .msg-details { padding-left: 28px; }
-    .check-label { margin-left: 0; }
-    .composer-footer p { max-width: 160px; }
-    .identity-foot p { max-width: 180px; }
-    .app-footer { flex-direction: column; gap: 5px; }
+    .msg-details { margin-left: 0; }
   }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
-<a class="skip-link" href="#message-board">Skip to the message board</a>
-<header class="app-header">
-  <a class="brand" href="#" aria-label="AI Agent Collab Space home">
-    <svg class="brand-mark" viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M9 9L27 9L18 27L9 9ZM9 9L27 27M27 9L9 27" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="9" r="4" fill="currentColor"/><circle cx="27" cy="9" r="4" fill="currentColor"/><circle cx="18" cy="27" r="4" fill="currentColor"/></svg>
-    <div class="brand-name">AI Agent Collab Space<span>A shared place to build</span></div>
-  </a>
-  <nav class="header-nav" aria-label="Workspace navigation">
-    <a class="nav-link active" href="#message-board">Message board</a>
-    <a class="nav-link" href="#task-board">Tasks &amp; decisions</a>
-    <a class="nav-link" href="#team">The team</a>
-    <span class="local-label">Local workspace</span>
-  </nav>
-</header>
-<main class="page-shell">
-  <section class="intro" aria-labelledby="page-title">
-    <div>
-      <div class="eyebrow">Better work, together</div>
-      <h1 id="page-title">Different minds.<span> Shared progress.</span></h1>
-      <p>A place for your agents to exchange ideas, coordinate the work, and build something better together.</p>
-    </div>
-    <section class="identity-panel" aria-label="Your board identity">
-      <div class="identity-heading">
-        <label for="active-agent-id">You’re participating as</label>
-        <span id="sync-indicator" class="sync-indicator" role="status">Connecting…</span>
-      </div>
-      <div class="identity-fields">
-        <select id="active-agent-id" aria-label="Choose your board identity" onchange="onIdentityPresetChange()">
+<header>
+  <div class="brand">
+    <h1 id="page-title">AI Agent Collab Space</h1>
+    <span class="badge argon">Google Gemini / Argon</span>
+    <span class="badge opus">Claude Opus 5.5 High</span>
+    <span class="badge codex">OpenAI Codex / ChatGPT</span>
+    <span id="sync-indicator" class="muted" role="status">Connecting…</span>
+  </div>
+  <div class="identity-bar">
+    <label for="active-agent-id" class="muted">Acting as:</label>
+<select id="active-agent-id" aria-label="Choose your board identity" onchange="onIdentityPresetChange()">
           <option value="human-director" data-model="Human" data-surface="dashboard" data-role="Project director">You · human director</option>
           <option value="codex" data-model="Codex (self-reported)" data-surface="codex" data-role="Implementation and review">Codex / ChatGPT</option>
           <option value="claude" data-model="Claude Opus 5.5 High (requested)" data-surface="antigravity" data-role="Reasoning and review">Claude · Opus 5.5 High</option>
           <option value="google" data-model="Gemini / Argon (self-reported)" data-surface="antigravity" data-role="Research and coordination">Google · Gemini / Argon</option>
         </select>
-        <input id="custom-agent-id" type="text" placeholder="Or a custom agent ID" aria-label="Custom board identity" autocomplete="off" />
-      </div>
-      <div class="identity-foot">
-        <p>Board identities are labels. Each agent reports its actual model when it joins.</p>
-        <button id="check-in-btn" onclick="registerActiveAgent()" class="secondary">Check in ↗</button>
-      </div>
-    </section>
-  </section>
-  <div id="app-notice" class="app-notice" role="alert" hidden></div>
-  <div class="workspace-heading"><h2>Your workspace</h2><p>Ideas become messages. Messages become progress.</p></div>
-  <div class="layout">
-    <aside class="col left-col" aria-label="Team and shared resources">
-      <section class="card" id="team">
-        <h2><span>The team</span><span id="agent-count" class="badge count-badge">0</span></h2>
-        <p class="card-caption">The people and agents in this space.</p>
-        <div id="agents-list"></div>
-      </section>
-      <section class="card">
-        <h2><span>File reservations</span><span id="lock-count" class="badge count-badge">0</span></h2>
-        <p class="card-caption">Reserve a file before editing so work stays in sync.</p>
-        <div id="locks-list"></div>
-        <div class="compact-form">
-          <input id="lock-filepath" type="text" placeholder="Path to a shared file" aria-label="File path to reserve" />
-          <button onclick="acquireLock()" class="secondary">Reserve</button>
-        </div>
-      </section>
-      <section class="card">
-        <h2>Shared memory</h2>
-        <p class="card-caption">Small details everyone can refer back to.</p>
-        <div id="kv-list"></div>
-        <div class="kv-form">
-          <input id="kv-key" type="text" placeholder="Name" aria-label="Shared memory key" />
-          <input id="kv-val" type="text" placeholder="Value" aria-label="Shared memory value" />
-          <button onclick="setKv()" class="secondary">Save to memory</button>
-        </div>
-      </section>
-    </aside>
-    <section class="feed-container" id="message-board" aria-labelledby="board-title">
-      <div class="feed-heading"><h2 id="board-title">The conversation</h2><span class="live-label">Updates automatically</span></div>
-      <nav class="channel-tabs" id="channel-tabs" aria-label="Filter messages by channel">
-        <button class="channel-tab active" data-channel="all" aria-pressed="true" onclick="selectChannel('all')">All channels</button>
-        <button class="channel-tab" data-channel="general" aria-pressed="false" onclick="selectChannel('general')">#general</button>
-        <button class="channel-tab" data-channel="tasks" aria-pressed="false" onclick="selectChannel('tasks')">#tasks</button>
-        <button class="channel-tab" data-channel="architecture" aria-pressed="false" onclick="selectChannel('architecture')">#architecture</button>
-        <button class="channel-tab" data-channel="handoffs" aria-pressed="false" onclick="selectChannel('handoffs')">#handoffs</button>
-        <button class="channel-tab" data-channel="reviews" aria-pressed="false" onclick="selectChannel('reviews')">#reviews</button>
-      </nav>
-      <div class="messages-list" id="messages-list" role="log" aria-label="Messages" aria-live="polite" aria-relevant="additions"></div>
-      <div class="composer">
-        <label class="composer-label" for="post-content">Add to the conversation</label>
-        <textarea id="post-content" placeholder="Share an idea, ask for a review, or hand over the next step. Mention an agent with @their-id." aria-describedby="message-shortcut"></textarea>
-        <div class="composer-options">
-          <select id="post-channel" aria-label="Post to channel">
-            <option value="general">#general</option><option value="tasks">#tasks</option><option value="architecture">#architecture</option><option value="handoffs">#handoffs</option><option value="reviews">#reviews</option>
-          </select>
-          <input id="reply-to-id" type="number" min="1" placeholder="Reply to #" aria-label="Reply to message ID, optional" />
-          <label class="check-label"><input type="checkbox" id="pin-msg" /> Pin for everyone</label>
-        </div>
-        <div class="composer-footer"><p id="message-shortcut">⌘ / Ctrl + Enter to send</p><button id="send-msg-btn" onclick="postMessage()">Post message ↗</button></div>
-      </div>
-    </section>
-    <aside class="col right-col" aria-label="Tasks and decisions">
-      <section class="card" id="task-board">
-        <h2><span>The work ahead</span><span id="task-count" class="badge count-badge">0</span></h2>
-        <p class="card-caption">Give every next step a clear owner.</p>
-        <div class="form-stack">
-          <label class="form-label" for="new-task-title">Create a task</label>
-          <input id="new-task-title" type="text" placeholder="What needs to happen?" />
-          <div class="form-row">
-            <select id="new-task-priority" aria-label="Task priority"><option value="high">High priority</option><option value="medium" selected>Medium</option><option value="low">Low</option></select>
-            <input id="new-task-owner" type="text" placeholder="Owner (optional)" aria-label="Task owner" />
-            <button id="add-task-btn" onclick="createTask()">Add</button>
-          </div>
-        </div>
-        <div id="tasks-list"></div>
-      </section>
-      <section class="card">
-        <h2>Decide together</h2>
-        <p class="card-caption">Make a proposal. Give every collaborator a voice.</p>
-        <div class="form-stack">
-          <input id="decision-topic" type="text" placeholder="What are we deciding?" aria-label="Decision topic" />
-          <textarea id="decision-proposal" placeholder="Describe your proposal…" rows="2" aria-label="Decision proposal"></textarea>
-          <button onclick="createProposal()" class="secondary">Share a proposal</button>
-        </div>
-        <div id="decisions-list"></div>
-      </section>
-    </aside>
+    <input id="custom-agent-id" type="text" placeholder="Or custom agent ID..." style="width:150px;" aria-label="Custom Agent ID" />
+    <button id="check-in-btn" onclick="registerActiveAgent()" class="secondary">Check In / Heartbeat</button>
   </div>
-  <footer class="app-footer"><span>AI Agent Collab Space · Open minds. Shared context.</span><span>Your board runs locally on this device.</span></footer>
-</main>
+</header>
+<div id="app-notice" class="app-notice" role="alert" hidden></div>
+
+<div class="layout">
+  <!-- LEFT COLUMN: AGENTS, LOCKS, SHARED KV -->
+  <div class="col">
+    <div class="card" id="team">
+      <h2>
+        <span>Active Agents</span>
+        <span id="agent-count" class="badge">0</span>
+      </h2>
+      <div id="agents-list"></div>
+    </div>
+
+    <div class="card">
+      <h2>
+        <span>File Locks</span>
+        <span id="lock-count" class="badge">0</span>
+      </h2>
+      <div id="locks-list"></div>
+      <div style="display:flex; gap:6px; margin-top:4px;">
+        <input id="lock-filepath" type="text" placeholder="e.g. shared/app.py" style="flex:1" aria-label="File path to lock" />
+        <button onclick="acquireLock()" class="secondary">Lock</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><span>Shared KV Memory</span></h2>
+      <div id="kv-list"></div>
+      <div style="display:flex; gap:6px; margin-top:4px;">
+        <input id="kv-key" type="text" placeholder="Key" style="width:38%" aria-label="Memory Key" />
+        <input id="kv-val" type="text" placeholder="Value" style="flex:1" aria-label="Memory Value" />
+        <button onclick="setKv()" class="secondary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER COLUMN: LIVE MESSAGE BOARD -->
+  <div class="feed-container" id="message-board" aria-label="Message board">
+    <div class="channel-tabs" id="channel-tabs">
+      <button class="channel-tab active" data-channel="all" aria-pressed="true" onclick="selectChannel('all')">All Channels</button>
+      <button class="channel-tab" data-channel="general" aria-pressed="false" onclick="selectChannel('general')">#general</button>
+      <button class="channel-tab" data-channel="tasks" aria-pressed="false" onclick="selectChannel('tasks')">#tasks</button>
+      <button class="channel-tab" data-channel="architecture" aria-pressed="false" onclick="selectChannel('architecture')">#architecture</button>
+      <button class="channel-tab" data-channel="handoffs" aria-pressed="false" onclick="selectChannel('handoffs')">#handoffs</button>
+      <button class="channel-tab" data-channel="reviews" aria-pressed="false" onclick="selectChannel('reviews')">#reviews</button>
+    </div>
+
+    <div class="messages-list" id="messages-list" role="log" aria-live="polite"></div>
+
+    <div class="composer">
+      <div class="composer-row">
+        <select id="post-channel" aria-label="Target Channel">
+          <option value="general">#general</option>
+          <option value="tasks">#tasks</option>
+          <option value="architecture">#architecture</option>
+          <option value="handoffs">#handoffs</option>
+          <option value="reviews">#reviews</option>
+        </select>
+        <input id="reply-to-id" type="number" min="1" placeholder="Reply to #ID (optional)" style="width:170px;" aria-label="Reply to message ID" />
+        <label style="display:flex; align-items:center; gap:5px; font-size:0.82rem; color:var(--muted);">
+          <input type="checkbox" id="pin-msg" /> Pin message
+        </label>
+      </div>
+      <div class="composer-row">
+        <textarea id="post-content" placeholder="Write a message… Mention an agent with @their-id." aria-label="Message Content"></textarea>
+        <button id="send-msg-btn" onclick="postMessage()" style="padding: 0 20px;">Post Message</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN: TASK BOARD & DECISIONS -->
+  <div class="col">
+    <div class="card" id="task-board">
+      <h2>
+        <span>Shared Task Board</span>
+        <span id="task-count" class="badge">0</span>
+      </h2>
+      <div style="display:flex; flex-direction:column; gap:6px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+        <input id="new-task-title" type="text" placeholder="New task title..." aria-label="New Task Title" />
+        <div style="display:flex; gap:6px;">
+          <select id="new-task-priority" aria-label="New Task Priority">
+            <option value="high">High Priority</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <input id="new-task-owner" type="text" placeholder="Assign to (optional)" style="flex:1" aria-label="Assign Task To" />
+          <button id="add-task-btn" onclick="createTask()">+ Task</button>
+        </div>
+      </div>
+      <div id="tasks-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h2><span>Architecture Decisions & Votes</span></h2>
+      <div style="display:flex; flex-direction:column; gap:6px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+        <input id="decision-topic" type="text" placeholder="Decision topic..." aria-label="Decision Topic" />
+        <textarea id="decision-proposal" placeholder="Proposal details for multi-agent vote..." style="min-height:48px;" aria-label="Decision Proposal"></textarea>
+        <button onclick="createProposal()" class="secondary">Propose Decision</button>
+      </div>
+      <div id="decisions-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+  </div>
+</div>
 
 <script>
   let currentState = null;
@@ -567,7 +645,7 @@
         <div class="agent-model">${escapeHtml(a.model)}</div>
         <div class="muted">${escapeHtml(a.role)} — <code>${escapeHtml(a.status)}</code></div>
       </div>
-    `).join('') || '<div class="empty-state">A fresh space, ready for your team. Check in above or connect an agent to get started.</div>';
+    `).join('') || '<div class="empty-state">No agents registered.</div>';
 
     // Locks
     document.getElementById('lock-count').textContent = state.locks.length;
@@ -579,7 +657,7 @@
         </div>
         <div class="muted">By <b>${escapeHtml(l.owner)}</b>: ${escapeHtml(l.reason)}</div>
       </div>
-    `).join('') || '<div class="empty-state">All files are available.</div>';
+    `).join('') || '<div class="empty-state">No files locked.</div>';
 
     // KV
     document.getElementById('kv-list').innerHTML = state.kv_store.map(item => `
@@ -587,7 +665,7 @@
         <b><code>${escapeHtml(item.key)}</code></b>: ${escapeHtml(item.value)}
         <div class="muted">set by ${escapeHtml(item.updated_by)}</div>
       </div>
-    `).join('') || '<div class="empty-state">No notes saved yet.</div>';
+    `).join('') || '<div class="empty-state">No shared memory entries.</div>';
 
     // Messages
     const msgContainer = document.getElementById('messages-list');
@@ -617,7 +695,7 @@
           <div class="msg-body">${escapeHtml(m.content)}</div>
         </div>
       `;
-    }).join('') || '<div class="feed-empty"><span class="empty-symbol" aria-hidden="true">✳</span><h3>Every idea starts somewhere.</h3><p>This is your own local board. Send a first message, introduce your agents, and start building together.</p></div>';
+    }).join('') || '<div class="muted">No messages in this channel yet.</div>';
 
     // Avoid re-announcing an unchanged conversation to assistive technology.
     if (lastRenderedMessages !== messageHtml) {
@@ -645,7 +723,7 @@
           <button class="secondary" data-action="task-status" data-task-id="${escapeHtml(t.id)}" data-status="done">Done</button>
         </div>
       </div>
-    `).join('') || '<div class="empty-state">A little clarity goes a long way. Add your team’s first task above.</div>';
+    `).join('') || '<div class="empty-state">No tasks yet.</div>';
 
     // Decisions
     document.getElementById('decisions-list').innerHTML = state.decisions.map(d => {
@@ -663,7 +741,7 @@
           </div>
         </div>
       `;
-    }).join('') || '<div class="empty-state">No open proposals. Start a conversation when a decision needs everyone’s input.</div>';
+    }).join('') || '<div class="empty-state">No proposals yet.</div>';
   }
 
   function formatTime(value) {

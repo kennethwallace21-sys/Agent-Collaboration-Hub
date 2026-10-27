@@ -21,6 +21,17 @@ def shell_launcher(args: list[str]) -> str:
     return "#!/bin/sh\nexec " + shlex.join(args) + "\n"
 
 
+def mac_launcher(args: list[str], workspace: Path) -> str:
+    """Capture Finder-launched errors, including a missing Python runtime."""
+    return ("#!/bin/sh\n"
+            "log_dir=" + shlex.quote(str(workspace / "state")) + "\n"
+            '/bin/mkdir -p "$log_dir" || exit 1\n'
+            'exec >> "$log_dir/desktop-launch.log" 2>&1\n'
+            "printf '\\nAI Agent Collab Space launch: '\n"
+            "/bin/date -u '+%Y-%m-%dT%H:%M:%SZ'\n"
+            "exec " + shlex.join(args) + "\n")
+
+
 def cmd_launcher(args: list[str]) -> str:
     command = subprocess.list2cmdline(args).replace("%", "%%")
     return "@echo off\r\nsetlocal DisableDelayedExpansion\r\n" + command + "\r\nif errorlevel 1 pause\r\n"
@@ -56,7 +67,7 @@ def create_shortcut(code_dir: Path, workspace: Path, desktop_dir: Path, python: 
         resources = contents / "Resources"
         executable.parent.mkdir(parents=True, exist_ok=True)
         resources.mkdir(parents=True, exist_ok=True)
-        _write(executable, shell_launcher(args), True)
+        _write(executable, mac_launcher(args, workspace), True)
         icon = assets / "app-icon.icns"
         if icon.exists():
             shutil.copy2(icon, resources / "app-icon.icns")
@@ -65,6 +76,9 @@ def create_shortcut(code_dir: Path, workspace: Path, desktop_dir: Path, python: 
                           "CFBundleIdentifier": "org.aiagentcollab.desktop", "CFBundleVersion": "0.1.0",
                           "CFBundleShortVersionString": "0.1.0", "CFBundlePackageType": "APPL",
                           "CFBundleExecutable": "launch", "CFBundleIconFile": "app-icon.icns",
+                          "NSDesktopFolderUsageDescription": "Read and save the collaboration workspace you chose in your Desktop folder.",
+                          "NSDocumentsFolderUsageDescription": "Read and save the collaboration workspace you chose in your Documents folder.",
+                          "NSDownloadsFolderUsageDescription": "Read and save the collaboration workspace you chose in your Downloads folder.",
                           "NSHighResolutionCapable": True}, handle)
         return {"path": str(bundle), "kind": "macOS app", "note": "Requires the installed Python runtime."}
     if platform == "win32":

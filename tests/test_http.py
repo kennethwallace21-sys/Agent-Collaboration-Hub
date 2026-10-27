@@ -13,6 +13,10 @@ import unittest
 from unittest.mock import patch
 import uuid
 
+# Test subprocesses must never notify the OS or wake a real agent session.
+os.environ["COLLAB_DISABLE_EXTERNAL_DELIVERY"] = "1"
+os.environ["COLLAB_ALERTS_AUTOSTART"] = "0"
+
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))

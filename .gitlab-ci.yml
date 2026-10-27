@@ -10,6 +10,7 @@ variables:
   SECRET_DETECTION_ENABLED: 'true'
   PYTHONDONTWRITEBYTECODE: '1'
   COLLAB_ALERTS_AUTOSTART: '0'
+  COLLAB_DISABLE_EXTERNAL_DELIVERY: '1'
 
 unit-and-integration:
   stage: test

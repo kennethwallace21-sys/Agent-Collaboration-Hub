@@ -16,6 +16,16 @@ python3 scripts/desktop.py --workspace "/path/to/your/workspace"
 
 Use `py` on Windows. Windows shortcuts and process behavior are not verified on a Windows machine in this development environment; include the exact error and Python version when reporting an issue.
 
+On macOS, desktop-app launches save output and errors in `WORKSPACE/state/desktop-launch.log`. Server startup errors appear in `WORKSPACE/state/desktop-server.log`. These logs can explain a click that produces no browser window; keep workspace paths and private content out of public reports.
+
+## macOS blocks a workspace in Desktop, Documents, or Downloads
+
+`PermissionError`, `Operation not permitted`, or an error opening `state/.collab.lock` can mean macOS blocked the selected folder. A terminal or AI client may have folder access while the desktop app or its Python runtime does not. The app includes [Apple's folder usage descriptions](https://developer.apple.com/documentation/bundleresources/information-property-list/nsdesktopfolderusagedescription) for Desktop, Documents, and Downloads; macOS controls whether access is granted.
+
+The simplest location is the default `~/Library/Application Support/AI Agent Collaboration/workspace`. To move an existing board there, stop its server, alert watcher, and connected board clients first, preserve a backup, and migrate the complete workspace. Point the desktop shortcut and every client at the same new location before restarting. A Desktop link can provide convenient access, but configure the app with the canonical Application Support path.
+
+Alternatively, allow the relevant app or runtime in **System Settings → Privacy & Security → Files and Folders** for the folder you chose, then relaunch. A protected-folder workspace must be accessible when the app starts a stopped server; an already-running server can conceal that problem. The default Application Support workspace does not require broad disk access.
+
 ## The page will not load
 
 Check the server output and use the address it reports. The default is `http://127.0.0.1:8765`. Another process may already be using the port, or the server may be running against a different workspace. Do not delete PID files or terminate unrelated processes without checking what they belong to. `scripts/desktop.py stop --workspace PATH` stops only a launcher-managed matching server; it refuses an independently started server. Stop a foreground server in its original terminal. The optional alert watcher is stopped separately with `alerts.py stop` against the same workspace.

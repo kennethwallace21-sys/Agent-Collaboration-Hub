@@ -14,6 +14,10 @@ import types
 import unittest
 from unittest import mock
 
+# Test subprocesses must never notify the OS or wake a real agent session.
+os.environ["COLLAB_DISABLE_EXTERNAL_DELIVERY"] = "1"
+os.environ["COLLAB_ALERTS_AUTOSTART"] = "0"
+
 
 SOURCE = pathlib.Path(os.environ.get('COLLAB_SOURCE', pathlib.Path(__file__).resolve().parents[1] / 'collab.py'))
 sys.path.insert(0, str(SOURCE.resolve().parent))
