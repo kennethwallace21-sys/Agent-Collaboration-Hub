@@ -26,8 +26,9 @@ import sys
 import tempfile
 import time
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer as _ThreadingHTTPServer
 from pathlib import Path
+from socketserver import TCPServer
 
 from app_paths import CODE_DIR, workspace_root
 
@@ -37,6 +38,18 @@ DB_PATH = STATE_DIR / "collab.db"
 JSON_SNAPSHOT_PATH = STATE_DIR / "board.json"
 BOARD_MD_PATH = BASE_DIR / "BOARD.md"
 SHARED_ARTIFACTS_DIR = BASE_DIR / "shared"
+
+
+class ThreadingHTTPServer(_ThreadingHTTPServer):
+    """Bind the local board without a blocking reverse-DNS lookup.
+
+    HTTPServer normally resolves server_name before listening. Some macOS
+    resolvers stall even for 127.0.0.1; the board needs only its bound address.
+    """
+
+    def server_bind(self):
+        TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 
 def now_iso() -> str:

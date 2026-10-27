@@ -76,6 +76,16 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
         self.assertNotIn("Access-Control-Allow-Origin", headers)
 
+    def test_server_binds_without_reverse_dns_lookup(self):
+        with patch("socket.getfqdn", side_effect=AssertionError("Reverse DNS must not delay startup")):
+            server = self.hub.ThreadingHTTPServer(("127.0.0.1", 0), self.hub.CollabHTTPRequestHandler)
+        try:
+            self.assertEqual(server.server_name, "127.0.0.1")
+            self.assertEqual(server.server_port, server.server_address[1])
+            self.assertGreater(server.server_port, 0)
+        finally:
+            server.server_close()
+
     def test_message_roundtrip_and_snapshots_stay_in_selected_workspace(self):
         status, _, empty = self.request("GET", "/api/state")
         self.assertEqual(status, 200)

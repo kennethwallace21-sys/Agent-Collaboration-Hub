@@ -21,13 +21,18 @@ spec.loader.exec_module(desktop)
 
 SERVER = '''import argparse,json,os
 from http.server import BaseHTTPRequestHandler,HTTPServer
+from socketserver import TCPServer
 p=argparse.ArgumentParser();p.add_argument('action');p.add_argument('--host');p.add_argument('--port',type=int);a=p.parse_args()
 class H(BaseHTTPRequestHandler):
  def do_GET(self):
   body=json.dumps({'workspace':os.environ['COLLAB_WORKSPACE'],'pid':os.getpid()}).encode()
   self.send_response(200);self.send_header('Content-Type','application/json');self.end_headers();self.wfile.write(body)
  def log_message(self,*args):pass
-HTTPServer((a.host,a.port),H).serve_forever()
+class Server(HTTPServer):
+ def server_bind(self):
+  TCPServer.server_bind(self)
+  self.server_name,self.server_port=self.server_address[:2]
+Server((a.host,a.port),H).serve_forever()
 '''
 
 
@@ -91,6 +96,22 @@ class DesktopTests(unittest.TestCase):
     def test_status_is_read_only_for_missing_workspace(self):
         self.assertFalse(desktop.status(self.workspace, self.port)["running"])
         self.assertFalse(self.workspace.exists())
+
+    def test_start_failure_includes_server_error_before_temporary_log_is_removed(self):
+        (self.code / "collab.py").write_text(
+            "import sys\nprint('STARTUP DIAGNOSTIC: cannot open test database', file=sys.stderr)\n"
+            "raise SystemExit(3)\n", encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "STARTUP DIAGNOSTIC: cannot open test database") as failure:
+            self.launch()
+        self.assertIn(str(self.workspace / "state" / "desktop-server.log"), str(failure.exception))
+
+    def test_startup_log_diagnostic_is_bounded_and_handles_missing_file(self):
+        logfile = self.root / "server.log"
+        self.assertEqual(desktop.startup_log_tail(logfile), "")
+        logfile.write_text("old output\n" * 2000 + "final error\n\n", encoding="utf-8")
+        detail = desktop.startup_log_tail(logfile)
+        self.assertLessEqual(len(detail.encode("utf-8")), 4096)
+        self.assertTrue(detail.endswith("final error"))
 
     def test_browser_opens_matching_local_url_only(self):
         first = self.launch()

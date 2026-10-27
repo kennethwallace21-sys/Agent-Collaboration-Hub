@@ -151,6 +151,19 @@ def open_board(url: str) -> bool:
     return True
 
 
+def startup_log_tail(log_path: Path) -> str:
+    """Keep a startup failure useful even if its temporary log is removed."""
+    try:
+        with log_path.open("rb") as logfile:
+            logfile.seek(0, os.SEEK_END)
+            logfile.seek(max(0, logfile.tell() - 4096))
+            tail = logfile.read(4096).decode("utf-8", errors="replace")
+        detail = "\n".join(line for line in tail.splitlines() if line.strip())
+        return detail.encode("utf-8")[-4096:].decode("utf-8", errors="ignore")
+    except OSError:
+        return ""
+
+
 def start(workspace: Path, port: int = DEFAULT_PORT, open_browser: bool = True,
           enable_alerts: bool = False, timeout: float = 15) -> dict:
     workspace = workspace.expanduser().resolve()
@@ -193,7 +206,8 @@ def start(workspace: Path, port: int = DEFAULT_PORT, open_browser: bool = True,
                         process.kill()
                         process.wait(timeout=3)
             if not result.get("running"):
-                raise RuntimeError(f"The board did not start. Details: {log_path}")
+                detail = startup_log_tail(log_path) or "The server produced no startup output before it stopped."
+                raise RuntimeError(f"The board did not start. Details: {log_path}\n{detail}")
         if enable_alerts:
             completed = subprocess.run([sys.executable, str(CODE_DIR / "alerts.py"), "start"],
                 env={**os.environ, "COLLAB_WORKSPACE": str(workspace)}, cwd=str(CODE_DIR),
