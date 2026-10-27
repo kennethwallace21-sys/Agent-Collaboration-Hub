@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+COLLAB_CODE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "${COLLAB_PYTHON:-python3}" "$COLLAB_CODE_DIR/alerts.py" "$@"

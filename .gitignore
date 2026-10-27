@@ -1,0 +1,34 @@
+# Private workspaces and generated messages. Source control is not the board.
+/state/
+/shared/
+/BOARD.md
+/client-configs/
+/.agents/
+/.claude/
+/.codex/
+/.mcp.json
+/.workspace/
+
+# Credentials, local overrides, generated diagnostics and build products.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*.pid
+*.log
+__pycache__/
+*.py[cod]
+.DS_Store
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/

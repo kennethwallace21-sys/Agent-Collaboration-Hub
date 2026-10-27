@@ -1,0 +1,289 @@
+[
+  {
+    "name": "collab_alert_settings",
+    "arguments": {
+      "agent_id": "audit-a",
+      "via": "none",
+      "aliases": []
+    }
+  },
+  {
+    "name": "collab_join",
+    "arguments": {
+      "agent_id": "audit-a",
+      "model": "isolated-test",
+      "surface": "stdio",
+      "announce": false
+    }
+  },
+  {
+    "name": "collab_alert_settings",
+    "arguments": {
+      "agent_id": "audit-b",
+      "via": "none",
+      "aliases": []
+    }
+  },
+  {
+    "name": "collab_join",
+    "arguments": {
+      "agent_id": "audit-b",
+      "model": "isolated-test",
+      "surface": "stdio",
+      "announce": false
+    }
+  },
+  {
+    "name": "collab_heartbeat",
+    "arguments": {
+      "agent_id": "audit-a",
+      "status": "testing"
+    }
+  },
+  {
+    "name": "collab_roster",
+    "arguments": {}
+  },
+  {
+    "name": "collab_post",
+    "arguments": {
+      "sender": "audit-a",
+      "content": "@audit-b Please review. [nowake]"
+    }
+  },
+  {
+    "name": "collab_read",
+    "arguments": {
+      "mentions": "audit-b"
+    }
+  },
+  {
+    "name": "collab_wait",
+    "arguments": {
+      "agent_id": "audit-b",
+      "since": 0,
+      "timeout_seconds": 0
+    }
+  },
+  {
+    "name": "collab_status",
+    "arguments": {}
+  },
+  {
+    "name": "collab_task_add",
+    "arguments": {
+      "created_by": "audit-a",
+      "title": "Isolated task"
+    }
+  },
+  {
+    "name": "collab_task_claim",
+    "arguments": {
+      "task_id": 1,
+      "agent_id": "audit-a"
+    }
+  },
+  {
+    "name": "collab_task_claim",
+    "arguments": {
+      "task_id": 1,
+      "agent_id": "audit-b"
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_task_update",
+    "arguments": {
+      "task_id": 1,
+      "agent_id": "audit-a",
+      "status": "review",
+      "deliverable": "shared/result.md"
+    }
+  },
+  {
+    "name": "collab_task_list",
+    "arguments": {
+      "status": "review"
+    }
+  },
+  {
+    "name": "collab_task_claim",
+    "arguments": {
+      "task_id": 999,
+      "agent_id": "audit-a"
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_lock",
+    "arguments": {
+      "filepath": "shared/result.md",
+      "agent_id": "audit-a",
+      "ttl_seconds": 60
+    }
+  },
+  {
+    "name": "collab_lock",
+    "arguments": {
+      "filepath": "shared/result.md",
+      "agent_id": "audit-b"
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_locks",
+    "arguments": {}
+  },
+  {
+    "name": "collab_unlock",
+    "arguments": {
+      "filepath": "shared/result.md",
+      "agent_id": "audit-b"
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_unlock",
+    "arguments": {
+      "filepath": "shared/result.md",
+      "agent_id": "audit-a"
+    }
+  },
+  {
+    "name": "collab_propose",
+    "arguments": {
+      "agent_id": "audit-a",
+      "topic": "Isolated proposal",
+      "proposal": "Use the shared board."
+    }
+  },
+  {
+    "name": "collab_vote",
+    "arguments": {
+      "decision_id": 1,
+      "agent_id": "audit-b",
+      "vote": "approve",
+      "status": "approved"
+    }
+  },
+  {
+    "name": "collab_decisions",
+    "arguments": {
+      "status": "approved"
+    }
+  },
+  {
+    "name": "collab_kv_set",
+    "arguments": {
+      "key": "isolated-test",
+      "value": "ok",
+      "agent_id": "audit-a"
+    }
+  },
+  {
+    "name": "collab_kv_get",
+    "arguments": {
+      "key": "isolated-test"
+    }
+  },
+  {
+    "name": "collab_shared_list",
+    "arguments": {}
+  },
+  {
+    "name": "collab_inbox",
+    "arguments": {
+      "agent_id": "audit-b",
+      "mark_read": false
+    }
+  },
+  {
+    "name": "collab_ack",
+    "arguments": {
+      "agent_id": "audit-b",
+      "all": true
+    }
+  },
+  {
+    "name": "collab_notify",
+    "arguments": {
+      "sender": "audit-a",
+      "recipient": "audit-b",
+      "message": "Isolated direct notification"
+    }
+  },
+  {
+    "name": "collab_read",
+    "arguments": {
+      "limit": -1
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_read",
+    "arguments": {
+      "limit": true
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_read",
+    "arguments": {
+      "unexpected": "no"
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_post",
+    "arguments": {
+      "sender": "audit-a",
+      "content": "   "
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_task_add",
+    "arguments": {
+      "created_by": "audit-a",
+      "title": "Bad priority",
+      "priority": "invalid"
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_vote",
+    "arguments": {
+      "decision_id": 1,
+      "agent_id": "audit-a",
+      "vote": "invalid"
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_alert_settings",
+    "arguments": {
+      "agent_id": "audit-a",
+      "via": "command"
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_alert_settings",
+    "arguments": {
+      "agent_id": "audit-a",
+      "wake_on": [
+        "invalid"
+      ]
+    },
+    "expect_error": true
+  },
+  {
+    "name": "collab_ask",
+    "arguments": {
+      "requester": "audit-a",
+      "agent": "gemini",
+      "prompt": "do not launch"
+    },
+    "expect_error": true
+  }
+]

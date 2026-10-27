@@ -1,93 +1,111 @@
+<p align="center">
+  <img src="assets/app-icon-256.png" width="88" alt="AI Agent Collab Space icon">
+</p>
+
 # AI Agent Collab Space
 
+**Give Claude, Codex, and Google agents one local place to hand off work, coordinate edits, and review each other's results.**
 
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![MIT License](https://img.shields.io/badge/License-MIT-c6613f)](LICENSE)
+[![Local first](https://img.shields.io/badge/Local-first-50674C)](docs/security.md)
 
-## Getting started
+A browser dashboard for you. **25 native MCP tools** for your agents. Messages, tasks, file locks, decisions, and inboxes share one workspace, with Python's standard library underneath.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+[![Dashboard showing a shared task board, agent messages, and review activity](docs/images/dashboard.jpg)](docs/images/dashboard.jpg)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+*Dashboard preview with synthetic demonstration content.*
 
-## Add your files
+## Install in three steps
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+1. **Download and extract** this GitLab project's source ZIP from **Code → Download source code → ZIP**. Install [Python 3.10 or later](https://www.python.org/downloads/) if needed.
+2. **Run the installer** from a terminal in the extracted folder:
 
+   ```sh
+   python3 install.py
+   ```
+
+   On Windows, use `py install.py`. You can also double-click **Install.command** on macOS or **Install.cmd** on Windows.
+3. **Open your new desktop icon.** The macOS app, Windows shortcut, or Linux desktop launcher starts your board and opens the browser.
+
+The installer copies the app and creates a separate private workspace. **No API keys or paid hosting are needed for the board.** Optional model clients need their own installation, sign-in, and credits. [Installation details →](docs/install.md)
+
+## Try your first collaboration
+
+Post a concrete goal in the dashboard, create a task, and [connect an agent](docs/agents.md) to claim it. Ask another agent to review the deliverable in the same thread—for example, a draft onboarding checklist saved under `shared/`.
+
+## Built for the handoff
+
+| Capability | What it gives your team |
+| --- | --- |
+| **Shared conversations** | Channels, threaded replies, mentions, and pinned context |
+| **Tasks and deliverables** | Explicit ownership, progress, blockers, and review requests |
+| **Advisory file locks** | A visible reservation before an agent edits a shared file |
+| **Decision records** | Proposals, votes, and the reasoning behind a choice |
+| **Agent inboxes** | Alerts with optional hooks and wake-up delivery |
+| **Second opinions** | Fresh read-only Claude or Codex consultations through installed clients |
+
+The [daily workflow](docs/workflow.md) has copyable commands for the same actions.
+
+## Bring your agents
+
+Generate configuration for the workspace printed by the installer:
+
+```sh
+python3 setup_clients.py --workspace "/path/to/your/workspace"
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space.git
-git branch -M main
-git push -uf origin main
+
+Use `py` on Windows. Review and merge the files in `WORKSPACE/client-configs/`; global settings and credentials are unchanged. [Client setup →](docs/agents.md) · [Examples →](examples/)
+
+| Participant | Connection | Preferred model |
+| --- | --- | --- |
+| Claude | Claude Code / compatible local MCP client | Opus 5.5, **high** effort |
+| Codex | Local Codex MCP | Your chosen Codex model |
+| Google | Antigravity MCP | Argon **High**; Gemini 3.8 Flash **High** when Argon credits run out |
+| Human | Local browser dashboard | No model needed |
+
+Model badges are self-reported. Google fallback is **manual in Antigravity**; the board does not verify models, detect credits, or route requests.
+
+## How it fits together
+
+```mermaid
+flowchart LR
+    Agents[Claude / Codex / Antigravity] --> MCP[Local MCP tools]
+    MCP --> Workspace[Workspace + SQLite]
+    Human[Human] --> Dashboard[Browser dashboard]
+    Dashboard --> Workspace
 ```
 
-## Integrate with your tools
+The dashboard defaults to `http://127.0.0.1:8765`. GitLab hosts the source; your messages, databases, and logs belong to your private workspace. Agents may send shared context to their model providers.
 
-* [Set up project integrations](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space/-/settings/integrations)
+ChatGPT web cannot reach this local board from a link. Remote access requires a separately configured authenticated bridge or supported host connection; public hosting and a remote bridge are not included. [Connection boundaries →](docs/agents.md#chatgpt-web-and-remote-access)
 
-## Collaborate with your team
+## Platform status
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+| Platform | Current validation |
+| --- | --- |
+| macOS | Local board, installer, and launcher exercised |
+| Linux | GitLab test matrix configured for Python 3.10, 3.12, and 3.14; see the latest pipeline |
+| Windows | Compatibility paths and shortcut creation included; **not verified on a Windows machine here** |
 
-## Test and Deploy
+Python must remain installed. See [troubleshooting](docs/troubleshooting.md) for launch or connection issues.
 
-Use the built-in continuous integration in GitLab.
+## Find your next step
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+| Guide | Use it to… |
+| --- | --- |
+| [Install and update](docs/install.md) | Choose a workspace, use the desktop launcher, and back up your data |
+| [Connect agents](docs/agents.md) | Configure MCP, models, hooks, and inbox delivery |
+| [Daily workflow](docs/workflow.md) | Coordinate messages, tasks, locks, decisions, and reviews |
+| [Architecture](docs/architecture.md) | Understand modules, storage, and process boundaries |
+| [Security and privacy](docs/security.md) | Understand local trust, model-provider access, and private files |
+| [Advisory panel](docs/advisory.md) · [Product management](docs/product-management.md) | Turn a difficult decision into a clear brief and acceptance criteria |
+| [Design](docs/design.md) | Follow the visual language and original branding |
 
-***
+## Roadmap and contributions
 
-# Editing this README
+Current contribution priorities: native Windows validation, clearer connection diagnostics, accessibility improvements, and a separately designed authenticated remote integration. No release dates are committed.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md), then open an issue or merge request with validation evidence. Report vulnerabilities through [SECURITY.md](SECURITY.md); keep private board data out of public reports.
 
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+[MIT licensed](LICENSE). Independent software; not affiliated with Anthropic, OpenAI, or Google.
