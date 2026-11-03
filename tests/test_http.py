@@ -120,9 +120,9 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(message["model"], "test model")
         self.assertEqual(message["pinned"], 1)
         self.assertTrue((self.workspace / "state" / "collab.db").is_file())
-        snapshot = json.loads((self.workspace / "state" / "board.json").read_text())
+        snapshot = json.loads((self.workspace / "state" / "board.json").read_text(encoding="utf-8"))
         self.assertEqual(snapshot["messages"][0]["content"], content)
-        self.assertIn(content, (self.workspace / "BOARD.md").read_text())
+        self.assertIn(content, (self.workspace / "BOARD.md").read_text(encoding="utf-8"))
 
     def test_another_imported_workspace_cannot_see_private_messages(self):
         status, _, _ = self.request("POST", "/api/post", {
@@ -188,6 +188,14 @@ class HttpTests(unittest.TestCase):
         self.assertFalse(body["ok"])
         self.assertNotIn("Access-Control-Allow-Origin", headers)
 
+    def mebibyte_body(self):
+        """JSON bytes of exactly 1 MiB: the largest body the API accepts."""
+        payload = {"sender": "codex", "content": ""}
+        payload["content"] = "x" * (1048576 - len(json.dumps(payload).encode("utf-8")))
+        raw = json.dumps(payload).encode("utf-8")
+        self.assertEqual(len(raw), 1048576)
+        return raw
+
     def test_post_requires_json_media_type(self):
         for content_type in ("text/plain", "application/x-www-form-urlencoded", ""):
             with self.subTest(content_type=content_type):
@@ -201,6 +209,28 @@ class HttpTests(unittest.TestCase):
         }, headers={"Content-Type": "application/json; charset=utf-8"})
         self.assertEqual(status, 200)
         self.assertTrue(body["ok"])
+
+    def test_rejected_requests_with_a_body_still_receive_their_status(self):
+        """A 415 or 403 must reach a client that already sent a large body.
+
+        Closing a socket while bytes remain unread in its receive queue makes
+        Windows abort the connection instead of closing it gracefully, and the
+        abort discards the response the client has not read yet. The handler
+        reads a declared body before answering, so every repeat here must return
+        the expected status. The loop repeats because the abort only wins the
+        race against the client's read some of the time.
+        """
+        raw = self.mebibyte_body()
+        for headers, expected in (
+            ({"Content-Type": "application/x-www-form-urlencoded"}, 415),
+            ({"Origin": "https://attacker.example"}, 403),
+        ):
+            for attempt in range(25):
+                with self.subTest(expected=expected, attempt=attempt):
+                    status, _, body = self.request("POST", "/api/post", raw=raw, headers=headers)
+                    self.assertEqual(status, expected)
+                    self.assertFalse(body["ok"])
+        self.assertEqual(self.request("GET", "/api/state")[2]["messages"], [])
 
     def test_invalid_json_utf8_and_non_object_bodies_are_bad_requests(self):
         for raw in (b"{", b'{"content": "\xff"}', b"[]", b"null", b'"string"', b"42"):
@@ -220,15 +250,11 @@ class HttpTests(unittest.TestCase):
                 self.assertFalse(body["ok"])
 
     def test_request_exactly_at_one_mebibyte_limit_is_accepted(self):
-        payload = {"sender": "codex", "content": ""}
-        overhead = len(json.dumps(payload).encode("utf-8"))
-        payload["content"] = "x" * (1048576 - overhead)
-        raw = json.dumps(payload).encode("utf-8")
-        self.assertEqual(len(raw), 1048576)
+        raw = self.mebibyte_body()
         status, _, body = self.request("POST", "/api/post", raw=raw)
         self.assertEqual(status, 200)
         self.assertTrue(body["ok"])
-        self.assertEqual(body["state"]["messages"][0]["content"], payload["content"])
+        self.assertEqual(body["state"]["messages"][0]["content"], json.loads(raw)["content"])
 
     def test_invalid_field_types_return_bad_request_without_crashing_server(self):
         cases = (

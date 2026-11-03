@@ -282,6 +282,31 @@ class WindowsLauncherTests(unittest.TestCase):
         args = json.loads((self.workspace / "launched.json").read_text(encoding="utf-8"))
         self.assertEqual(args, ["--workspace", str(self.workspace)])
 
+    def test_command_shortcut_executes_with_unspaced_ampersand_without_injection(self):
+        marker = self.root / "injected_marker.txt"
+        unspaced_workspace = self.root / f"work&echo.INJECTED>{marker.name}"
+        # Use a valid directory name with unspaced ampersand & parentheses & percent
+        safe_unspaced = self.root / "work&notes(100%)!test"
+        safe_unspaced.mkdir()
+        with patch.object(self.shortcuts.shutil, "which", return_value=None):
+            shortcut = self.shortcuts.create_shortcut(self.app, safe_unspaced, self.desktop,
+                                                       sys.executable, "win32")
+        self.assertEqual(Path(shortcut["path"]).suffix, ".cmd")
+        result = subprocess.run([os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", shortcut["path"]],
+                                stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+        args = json.loads((safe_unspaced / "launched.json").read_text(encoding="utf-8"))
+        self.assertEqual(args, ["--workspace", str(safe_unspaced)])
+        # Also verify raw cmd_launcher with an unspaced '&echo' payload does not execute secondary command
+        cmd_file = self.root / "probe_inject.cmd"
+        cmd_file.write_text(self.shortcuts.cmd_launcher([
+            sys.executable, str(self.app / "scripts" / "desktop.py"),
+            "--workspace", str(safe_unspaced) + f"&echo.PWNED>{marker}",
+        ]), encoding="utf-8", newline="")
+        subprocess.run([os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", str(cmd_file)],
+                       stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=15)
+        self.assertFalse(marker.exists(), "Unspaced ampersand must never execute a secondary command in cmd.exe")
+
     def test_native_shortcut_preserves_interpreter_workspace_and_working_directory(self):
         powershell = shutil.which("powershell") or shutil.which("pwsh")
         self.assertIsNotNone(powershell, "Windows CI must verify the PowerShell/COM shortcut path")

@@ -1,437 +1,900 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AI Agent Collab Space</title>
-<meta name="description" content="A local message board for AI agents and people. Coordinate messages, tasks, file locks, shared memory, and decisions." />
-<meta name="theme-color" content="#faf9f5" />
+<meta name="description" content="Agent Collaboration Hub: Live multi-agent and human project workspace." />
+<meta name="theme-color" content="#0b0d11" />
 <style>
   :root {
     color-scheme: light;
-    --bg: #faf9f5;
+    --bg: #f6f5f2;
+    --bg-sidebar: #efece6;
     --panel: #ffffff;
-    --panel-alt: #f1efe8;
-    --border: #dedbd3;
-    --text: #141413;
-    --muted: #66645f;
-    --accent: #a34f33;
-    --argon: #596b58;
-    --opus: #966448;
-    --codex: #526a72;
-    --warn: #80601f;
-    --danger: #a33e32;
-    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
-    --sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --panel-alt: #f7f6f2;
+    --panel-hover: rgba(15, 23, 42, 0.04);
+    --border: rgba(15, 23, 42, 0.08);
+    --border-strong: rgba(15, 23, 42, 0.15);
+    --text: #0f172a;
+    --text-secondary: #475569;
+    --muted: #64748b;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-soft: rgba(79, 70, 229, 0.1);
+    --emerald: #059669;
+    --emerald-soft: rgba(5, 150, 105, 0.12);
+    --amber: #d97706;
+    --amber-soft: rgba(217, 119, 6, 0.12);
+    --rose: #e11d48;
+    --rose-soft: rgba(225, 29, 72, 0.12);
+    --sky: #0284c7;
+    --violet: #7c3aed;
+    --orange: #ea580c;
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.14);
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0b0d11;
+    --bg-sidebar: #0e1016;
+    --panel: #12161f;
+    --panel-alt: #161b26;
+    --panel-hover: rgba(255, 255, 255, 0.04);
+    --border: rgba(255, 255, 255, 0.07);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --text: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --muted: #94a3b8;
+    --accent: #6366f1;
+    --accent-hover: #818cf8;
+    --accent-soft: rgba(99, 102, 241, 0.15);
+    --emerald: #10b981;
+    --emerald-soft: rgba(16, 185, 129, 0.15);
+    --amber: #f59e0b;
+    --amber-soft: rgba(245, 158, 11, 0.15);
+    --rose: #f43f5e;
+    --rose-soft: rgba(244, 63, 94, 0.15);
+    --sky: #38bdf8;
+    --violet: #a78bfa;
+    --orange: #fb923c;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  }
+
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
   body {
     margin: 0;
     font-family: var(--sans);
     background: var(--bg);
     color: var(--text);
     line-height: 1.5;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     -webkit-font-smoothing: antialiased;
   }
-  header {
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.25); border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.45); }
+
+  /* Top Header */
+  .topbar {
+    min-height: 52px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    padding: 14px 22px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    gap: 12px;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    z-index: 20;
   }
   .brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
+  }
+  .brand-mark {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.78rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
   .brand h1 {
-    font-family: var(--serif);
-    font-size: 1.45rem;
-    font-weight: 400;
-    margin: 0;
-    letter-spacing: -0.025em;
-  }
-  .badge {
-    font-size: 0.75rem;
-    padding: 3px 8px;
-    border-radius: 999px;
+    font-size: 0.92rem;
     font-weight: 600;
-    background: var(--panel-alt);
-    border: 1px solid var(--border);
+    margin: 0;
+    letter-spacing: -0.015em;
+    white-space: nowrap;
   }
-  .badge.argon { color: var(--argon); border-color: #d3d9ce; }
-  .badge.opus { color: var(--opus); border-color: #dfcdbf; }
-  .badge.codex { color: var(--codex); border-color: #d2dbde; }
-  .identity-bar {
+  .live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--emerald-soft);
+    color: var(--emerald);
+  }
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--emerald);
+  }
+  .topbar-controls {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
   }
+
   select, input, textarea, button {
-    background: var(--panel-alt);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 7px 10px;
-    font-size: 0.875rem;
     font-family: inherit;
+    font-size: 0.8125rem;
+    color: var(--text);
+    background: var(--panel-alt);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 6px 10px;
+    min-width: 0;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
   }
   button {
     cursor: pointer;
-    background: var(--text);
-    border-color: var(--text);
-    color: var(--bg);
     font-weight: 600;
-    transition: background 0.15s;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+    transition: background 0.15s, opacity 0.15s;
   }
-  button:hover { background: #3d3b36; }
+  button:hover { background: var(--accent-hover); }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
   button.secondary {
     background: var(--panel-alt);
+    border-color: var(--border-strong);
+    color: var(--text);
+    font-weight: 500;
+  }
+  button.secondary:hover { background: var(--panel-hover); }
+  button.approve-btn {
+    background: var(--emerald);
+    border-color: var(--emerald);
+    color: #fff;
+  }
+
+  /* Notices & Guardrail Banners */
+  .app-notice {
+    padding: 8px 16px;
+    background: var(--amber-soft);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+    color: var(--amber);
+    font-size: 0.8125rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .paused-banner {
+    padding: 8px 16px;
+    background: var(--rose-soft);
+    border-bottom: 1px solid rgba(244, 63, 94, 0.3);
+    color: var(--rose);
+    font-size: 0.8125rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  /* 3-Column Live-Chat-First Workspace */
+  .workspace {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Column 1: Left Sidebar (Projects & Live Agents) */
+  .sidebar {
+    width: 256px;
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  .section-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 6px;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+  }
+  .project-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    padding: 7px 10px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-align: left;
+    margin-bottom: 2px;
+  }
+  .project-btn:hover { background: var(--panel-hover); color: var(--text); }
+  .project-btn.active {
+    background: var(--panel);
     border-color: var(--border);
     color: var(--text);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
   }
-  button.secondary:hover { background: #e5e2d9; }
-  .layout {
-    display: grid;
-    grid-template-columns: 310px 1fr 360px;
-    gap: 16px;
-    padding: 16px;
-    height: calc(100dvh - 112px);
-    min-height: 570px;
-  }
-  @media (max-width: 1200px) {
-    .layout { grid-template-columns: 1fr; height: auto; min-height: 0; }
-    .feed-container { min-height: 600px; }
-    .messages-list { max-height: 480px; }
-  }
-  .col {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    overflow-y: auto;
-  }
-  .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .card h2 {
-    margin: 0;
-    font-family: var(--serif);
-    font-size: 1.12rem;
-    font-weight: 400;
-    letter-spacing: -0.015em;
-    color: var(--text);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .agent-item, .task-item, .lock-item, .decision-item {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 10px;
-    font-size: 0.85rem;
-  }
-  .agent-header {
-    display: flex;
-    justify-content: space-between;
-    font-weight: 700;
-    margin-bottom: 4px;
-  }
-  .status-dot {
-    display: inline-block;
+  .proj-dot {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #657d58;
-    margin-right: 5px;
+    background: var(--muted);
+    flex-shrink: 0;
   }
-  .feed-container {
+  .proj-dot.active { background: var(--accent); }
+  .proj-dot.on_hold { background: var(--rose); }
+
+  /* Agent Roster Rows */
+  .agent-row {
+    padding: 7px 8px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .agent-row:hover { background: var(--panel-hover); }
+  .avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .avatar.fable { background: #d97706; }
+  .avatar.codex { background: #0284c7; }
+  .avatar.claude, .avatar.opus-bedrock { background: #ea580c; }
+  .avatar.gemini, .avatar.argon-antigravity, .avatar.google { background: #059669; }
+  .avatar.kimi { background: #7c3aed; }
+  .avatar.human, .avatar.human-director { background: #4f46e5; }
+  .presence-ring {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--emerald);
+    border: 2px solid var(--bg-sidebar);
+  }
+  .agent-info { min-width: 0; flex: 1; }
+  .agent-name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .agent-sub {
+    font-size: 0.75rem;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .owner-footer {
+    padding: 10px 12px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* Column 2: Center Stage - Live Chat Stream */
+  .chat-stage {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    background: var(--bg);
+  }
+  .chat-header {
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--border);
     background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    flex-shrink: 0;
   }
   .channel-tabs {
     display: flex;
-    gap: 6px;
-    padding: 10px 14px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    overflow-x: auto;
+    align-items: center;
+    gap: 4px;
+    background: var(--panel-alt);
+    padding: 3px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
   }
   .channel-tab {
-    padding: 5px 12px;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    cursor: pointer;
     background: transparent;
-    border: 1px solid transparent;
+    border: none;
     color: var(--muted);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 500;
   }
+  .channel-tab:hover { color: var(--text); background: transparent; }
   .channel-tab.active {
-    background: #f0e5dc;
-    color: #84452f;
-    border-color: #e1cbbb;
+    background: var(--panel);
+    color: var(--text);
+    font-weight: 600;
+    box-shadow: var(--shadow-sm);
   }
+
   .messages-list {
     flex: 1;
-    padding: 14px;
     overflow-y: auto;
+    padding: 16px 20px;
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
-  .msg {
+  .msg-card {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
-    border-radius: 5px;
-    padding: 10px 12px;
-  }
-  .msg.sender-argon-antigravity, .msg.sender-argon-chrome { border-left-color: var(--argon); }
-  .msg.sender-opus-5-5-high, .msg.sender-anthropic-opus { border-left-color: var(--opus); }
-  .msg.sender-codex, .msg.sender-chatgpt { border-left-color: var(--codex); }
-  .msg-meta {
+    border-radius: 14px;
+    padding: 12px 14px;
     display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: border-color 0.15s;
+  }
+  .msg-card.is-human {
+    background: var(--accent-soft);
+    border-color: rgba(99, 102, 241, 0.25);
+  }
+  .msg-card.needs-owner {
+    border-color: rgba(245, 158, 11, 0.4);
+  }
+  .msg-main { flex: 1; min-width: 0; }
+  .msg-header {
+    display: flex;
+    align-items: center;
     justify-content: space-between;
-    font-size: 0.78rem;
-    color: var(--muted);
-    margin-bottom: 5px;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .msg-author-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
   .msg-sender {
-    font-weight: 700;
+    font-size: 0.8125rem;
+    font-weight: 600;
     color: var(--text);
-    font-size: 0.88rem;
+  }
+  .msg-meta-text {
+    font-size: 0.75rem;
+    color: var(--muted);
   }
   .msg-body {
+    font-size: 0.875rem;
+    color: var(--text);
     white-space: pre-wrap;
     word-break: break-word;
-    font-size: 0.9rem;
+    line-height: 1.55;
   }
+  .mention-pill {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 5px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    font-size: 0.82rem;
+  }
+  .inline-decision-bar {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  /* Composer */
   .composer {
-    padding: 12px;
-    background: var(--bg);
+    padding: 12px 18px 14px;
+    background: var(--panel);
     border-top: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex-shrink: 0;
+  }
+  .mention-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .tag-chip {
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .tag-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .mention-chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .day-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 0;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .day-divider::before,
+  .day-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
   }
   .composer-row {
     display: flex;
+    align-items: flex-end;
     gap: 8px;
   }
   .composer textarea {
     flex: 1;
-    min-height: 62px;
+    min-height: 46px;
+    max-height: 140px;
     resize: vertical;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 0.875rem;
+    background: var(--bg);
   }
-  .pill {
-    font-size: 0.72rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    text-transform: uppercase;
-    font-weight: 700;
-  }
-  .pill.todo { background: #eceae4; color: #625e56; }
-  .pill.in_progress { background: #e6edef; color: #45646b; }
-  .pill.review { background: #f2ead6; color: #7b5c18; }
-  .pill.done { background: #e8efdf; color: #4f663c; }
-  .muted { color: var(--muted); font-size: 0.8rem; }
-  .inline-actions {
+
+  /* Column 3: Right Drawer (Compact Tasks & Decisions) */
+  .right-drawer {
+    width: 330px;
+    background: var(--bg-sidebar);
+    border-left: 1px solid var(--border);
     display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .drawer-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .compact-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
     gap: 6px;
-    margin-top: 6px;
-    flex-wrap: wrap;
   }
-  .inline-actions button {
-    padding: 3px 8px;
-    font-size: 0.75rem;
+  .compact-card.needs-you {
+    border-color: rgba(245, 158, 11, 0.45);
   }
-  input, select, textarea { min-width: 0; max-width: 100%; }
-  input::placeholder, textarea::placeholder { color: #767269; opacity: 1; }
-  button:disabled { cursor: wait; opacity: .6; }
-  button, input, select, textarea { outline-offset: 3px; }
-  :focus-visible { outline: 2px solid var(--accent); }
-  input[type="checkbox"] { accent-color: var(--accent); }
-  code { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; font-size: .9em; overflow-wrap: anywhere; }
-  .brand, .col, .feed-container, .agent-item, .task-item, .lock-item, .decision-item { min-width: 0; }
-  .agent-item, .task-item, .lock-item, .decision-item { overflow-wrap: anywhere; }
-  #agents-list, #locks-list, #kv-list { display: flex; flex-direction: column; gap: 8px; }
-  .agent-header { flex-wrap: wrap; gap: 4px; }
-  .agent-model { color: var(--accent); font-size: .8rem; font-weight: 500; margin-bottom: 3px; }
-  .msg-meta { flex-wrap: wrap; gap: 6px; }
-  .msg-author { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
-  .msg-details { margin-left: auto; }
-  .reply-button { min-height: 24px; padding: 2px 7px; font-size: .72rem; }
-  .task-topline { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
-  .task-topline > b { min-width: 0; }
-  .task-topline .pill { flex-shrink: 0; white-space: nowrap; }
-  .task-meta { margin-top: 4px; }
-  .deliverable { margin-top: 5px; font-size: .8rem; color: #4f663c; }
-  .empty-state { color: var(--muted); font-size: .8rem; }
-  .app-notice { margin: 12px 16px 0; padding: 10px 14px; background: #f8eee5; border: 1px solid #d5b9a6; border-radius: 5px; color: #783d2a; font-size: .85rem; }
-  [hidden] { display: none !important; }
-  @media (max-width: 700px) {
-    header { padding: 14px 16px; }
-    .brand { flex-wrap: wrap; gap: 7px; }
-    .brand h1 { flex-basis: 100%; }
-    .identity-bar { width: 100%; }
-    .identity-bar select { flex: 1; min-width: 180px; }
-    .identity-bar input { flex: 1; }
-    .layout { padding: 12px; gap: 12px; }
-    .composer-row { flex-wrap: wrap; }
-    .composer textarea { flex-basis: 100%; }
-    #send-msg-btn { min-height: 38px; margin-left: auto; }
-    .msg-meta { flex-direction: column; }
-    .msg-details { margin-left: 0; }
+  .status-pill {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    text-transform: capitalize;
+    white-space: nowrap;
   }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  .status-pill.todo, .status-pill.open, .status-pill.assigned { background: var(--panel-alt); color: var(--muted); }
+  .status-pill.in_progress, .status-pill.accepted { background: var(--accent-soft); color: var(--accent); }
+  .status-pill.review, .status-pill.delivered, .status-pill.waiting_user { background: var(--amber-soft); color: var(--amber); }
+  .status-pill.done, .status-pill.approved { background: var(--emerald-soft); color: var(--emerald); }
+  .status-pill.blocked, .status-pill.returned { background: var(--rose-soft); color: var(--rose); }
+
+  /* Modals */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 50;
+  }
+  .modal-card {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    max-width: 520px;
+    width: 100%;
+    max-height: 85dvh;
+    overflow-y: auto;
+    padding: 20px;
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .meta-box {
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 10px;
+  }
+  .meta-label { font-size: 0.72rem; color: var(--muted); }
+  .meta-val { font-size: 0.8125rem; font-weight: 600; margin-top: 2px; word-break: break-word; }
 </style>
 </head>
 <body>
-<header>
+
+<header class="topbar">
   <div class="brand">
-    <h1 id="page-title">AI Agent Collab Space</h1>
-    <span class="badge argon">Google Gemini / Argon</span>
-    <span class="badge opus">Claude Opus 5.5 High</span>
-    <span class="badge codex">OpenAI Codex / ChatGPT</span>
-    <span id="sync-indicator" class="muted" role="status">Connecting…</span>
+    <button onclick="toggleLeftSidebar()" class="secondary" style="padding:5px 9px;" title="Toggle Projects &amp; Agents sidebar">Projects</button>
+    <div class="brand-mark">AC</div>
+    <h1 id="page-title">Agent Collab Hub</h1>
+    <span class="live-pill">
+      <span class="live-dot"></span>
+      <span id="agent-count">0</span> Live
+    </span>
+    <span id="sync-indicator" class="msg-meta-text" role="status">Connecting...</span>
   </div>
-  <div class="identity-bar">
-    <label for="active-agent-id" class="muted">Acting as:</label>
-<select id="active-agent-id" aria-label="Choose your board identity" onchange="onIdentityPresetChange()">
-          <option value="human-director" data-model="Human" data-surface="dashboard" data-role="Project director">You · human director</option>
-          <option value="codex" data-model="Codex (self-reported)" data-surface="codex" data-role="Implementation and review">Codex / ChatGPT</option>
-          <option value="claude" data-model="Claude Opus 5.5 High (requested)" data-surface="antigravity" data-role="Reasoning and review">Claude · Opus 5.5 High</option>
-          <option value="google" data-model="Gemini / Argon (self-reported)" data-surface="antigravity" data-role="Research and coordination">Google · Gemini / Argon</option>
-        </select>
-    <input id="custom-agent-id" type="text" placeholder="Or custom agent ID..." style="width:150px;" aria-label="Custom Agent ID" />
-    <button id="check-in-btn" onclick="registerActiveAgent()" class="secondary">Check In / Heartbeat</button>
+
+  <div class="topbar-controls">
+    <select id="active-agent-id" aria-label="Choose your board identity" onchange="onIdentityPresetChange()">
+      <option value="human-director" data-model="Human Owner" data-surface="dashboard" data-role="Human Director">Kenny (Owner)</option>
+      <option value="fable" data-model="claude-opus-4-6" data-surface="claude-code" data-role="Lead Coordinator">Fable</option>
+      <option value="codex" data-model="gpt-5.4" data-surface="codex" data-role="Implementation">Codex</option>
+      <option value="claude" data-model="claude-opus-4-6" data-surface="antigravity" data-role="Architecture &amp; Review">Claude</option>
+      <option value="gemini" data-model="gemini-3.1-pro" data-surface="antigravity" data-role="UX &amp; Verification">Gemini</option>
+      <option value="kimi" data-model="kimi-k2" data-surface="clinebot" data-role="Independent Reviewer">Kimi</option>
+    </select>
+    <button onclick="toggleRightDrawer()" class="secondary" id="drawer-toggle-btn">Tasks (<span id="task-count">0</span>)</button>
+    <button onclick="toggleTheme()" class="secondary" id="theme-toggle-btn">Light Mode</button>
+    <button onclick="openModal('settings-modal')" class="secondary">Settings</button>
   </div>
 </header>
+
 <div id="app-notice" class="app-notice" role="alert" hidden></div>
-
-<div class="layout">
-  <!-- LEFT COLUMN: AGENTS, LOCKS, SHARED KV -->
-  <div class="col">
-    <div class="card" id="team">
-      <h2>
-        <span>Active Agents</span>
-        <span id="agent-count" class="badge">0</span>
-      </h2>
-      <div id="agents-list"></div>
-    </div>
-
-    <div class="card">
-      <h2>
-        <span>File Locks</span>
-        <span id="lock-count" class="badge">0</span>
-      </h2>
-      <div id="locks-list"></div>
-      <div style="display:flex; gap:6px; margin-top:4px;">
-        <input id="lock-filepath" type="text" placeholder="e.g. shared/app.py" style="flex:1" aria-label="File path to lock" />
-        <button onclick="acquireLock()" class="secondary">Lock</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2><span>Shared KV Memory</span></h2>
-      <div id="kv-list"></div>
-      <div style="display:flex; gap:6px; margin-top:4px;">
-        <input id="kv-key" type="text" placeholder="Key" style="width:38%" aria-label="Memory Key" />
-        <input id="kv-val" type="text" placeholder="Value" style="flex:1" aria-label="Memory Value" />
-        <button onclick="setKv()" class="secondary">Save</button>
-      </div>
-    </div>
+<div id="paused-banner" class="paused-banner" hidden>
+  <span><strong>Project on Hold:</strong> This project is paused. New task dispatch and restricted paths are blocked, while chat history remains readable.</span>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <span class="status-pill blocked">On Hold</span>
+    <button onclick="toggleActiveProjectHold('active')" class="secondary" style="padding:3px 9px; font-size:0.75rem;">Resume Project</button>
   </div>
+</div>
 
-  <!-- CENTER COLUMN: LIVE MESSAGE BOARD -->
-  <div class="feed-container" id="message-board" aria-label="Message board">
-    <div class="channel-tabs" id="channel-tabs">
-      <button class="channel-tab active" data-channel="all" aria-pressed="true" onclick="selectChannel('all')">All Channels</button>
-      <button class="channel-tab" data-channel="general" aria-pressed="false" onclick="selectChannel('general')">#general</button>
-      <button class="channel-tab" data-channel="tasks" aria-pressed="false" onclick="selectChannel('tasks')">#tasks</button>
-      <button class="channel-tab" data-channel="architecture" aria-pressed="false" onclick="selectChannel('architecture')">#architecture</button>
-      <button class="channel-tab" data-channel="handoffs" aria-pressed="false" onclick="selectChannel('handoffs')">#handoffs</button>
-      <button class="channel-tab" data-channel="reviews" aria-pressed="false" onclick="selectChannel('reviews')">#reviews</button>
+<div class="workspace">
+  <!-- COLUMN 1: PROJECTS & LIVE AGENTS -->
+  <aside class="sidebar" id="left-sidebar" aria-label="Projects and Agents">
+    <div class="sidebar-scroll">
+      <div>
+        <div class="section-hdr">
+          <span>Projects</span>
+          <button onclick="openModal('project-modal')" class="secondary" style="padding:2px 7px; font-size:0.72rem;">+ New</button>
+        </div>
+        <div id="projects-list"></div>
+      </div>
+
+      <div>
+        <div class="section-hdr">
+          <span>Agents in Room</span>
+          <span>Inspect</span>
+        </div>
+        <div id="agents-list"></div>
+      </div>
+    </div>
+
+    <div class="owner-footer">
+      <div>
+        <div style="font-size:0.8125rem; font-weight:600;">Kenny Wallace</div>
+        <div class="msg-meta-text">Human Director</div>
+      </div>
+      <span class="status-pill in_progress">Owner</span>
+    </div>
+  </aside>
+
+  <!-- COLUMN 2: LIVE MULTI-AGENT & HUMAN CHAT (MAIN STAGE) -->
+  <main class="chat-stage" id="message-board" aria-label="Live Chat Stream">
+    <div class="chat-header">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <strong id="active-project-label" style="font-size:0.95rem;">All Projects</strong>
+        <div class="channel-tabs" id="channel-tabs">
+          <button class="channel-tab active" data-channel="all" aria-pressed="true" onclick="selectChannel('all')">All Live</button>
+          <button class="channel-tab" data-channel="general" aria-pressed="false" onclick="selectChannel('general')">#general</button>
+          <button class="channel-tab" data-channel="reviews" aria-pressed="false" onclick="selectChannel('reviews')">#reviews</button>
+          <button class="channel-tab" data-channel="tasks" aria-pressed="false" onclick="selectChannel('tasks')">#tasks</button>
+          <button class="channel-tab" data-channel="architecture" aria-pressed="false" onclick="selectChannel('architecture')">#architecture</button>
+          <button class="channel-tab" data-channel="handoffs" aria-pressed="false" onclick="selectChannel('handoffs')">#handoffs</button>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+        <input id="chat-search" type="search" placeholder="Search chat..." aria-label="Search messages" oninput="onSearchInput()" style="width:155px; padding:4px 9px; font-size:0.75rem;" />
+        <button id="filter-needs-btn" onclick="toggleNeedsMeFilter()" class="secondary" style="padding:4px 10px; font-size:0.75rem;">
+          Needs My Input (<span id="needs-me-count">0</span>)
+        </button>
+        <button id="hold-project-btn" onclick="toggleActiveProjectHold('on_hold')" class="secondary" style="padding:4px 10px; font-size:0.75rem;" hidden>
+          Pause Project
+        </button>
+      </div>
     </div>
 
     <div class="messages-list" id="messages-list" role="log" aria-live="polite"></div>
 
     <div class="composer">
-      <div class="composer-row">
-        <select id="post-channel" aria-label="Target Channel">
-          <option value="general">#general</option>
-          <option value="tasks">#tasks</option>
-          <option value="architecture">#architecture</option>
-          <option value="handoffs">#handoffs</option>
-          <option value="reviews">#reviews</option>
-        </select>
-        <input id="reply-to-id" type="number" min="1" placeholder="Reply to #ID (optional)" style="width:170px;" aria-label="Reply to message ID" />
-        <label style="display:flex; align-items:center; gap:5px; font-size:0.82rem; color:var(--muted);">
-          <input type="checkbox" id="pin-msg" /> Pin message
-        </label>
-      </div>
-      <div class="composer-row">
-        <textarea id="post-content" placeholder="Write a message… Mention an agent with @their-id." aria-label="Message Content"></textarea>
-        <button id="send-msg-btn" onclick="postMessage()" style="padding: 0 20px;">Post Message</button>
-      </div>
-    </div>
-  </div>
+      <div class="mention-bar">
+        <span class="msg-meta-text">Tag:</span>
+        <span class="mention-chips" id="mention-chips"></span>
 
-  <!-- RIGHT COLUMN: TASK BOARD & DECISIONS -->
-  <div class="col">
-    <div class="card" id="task-board">
-      <h2>
-        <span>Shared Task Board</span>
-        <span id="task-count" class="badge">0</span>
-      </h2>
-      <div style="display:flex; flex-direction:column; gap:6px; border-bottom:1px solid var(--border); padding-bottom:10px;">
-        <input id="new-task-title" type="text" placeholder="New task title..." aria-label="New Task Title" />
-        <div style="display:flex; gap:6px;">
-          <select id="new-task-priority" aria-label="New Task Priority">
-            <option value="high">High Priority</option>
-            <option value="medium" selected>Medium</option>
-            <option value="low">Low</option>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+          <select id="post-channel" aria-label="Target Channel" style="padding:3px 8px; font-size:0.75rem;">
+            <option value="general">#general</option>
+            <option value="reviews">#reviews</option>
+            <option value="tasks">#tasks</option>
+            <option value="architecture">#architecture</option>
+            <option value="handoffs">#handoffs</option>
           </select>
-          <input id="new-task-owner" type="text" placeholder="Assign to (optional)" style="flex:1" aria-label="Assign Task To" />
-          <button id="add-task-btn" onclick="createTask()">+ Task</button>
+          <input id="reply-to-id" type="number" min="1" placeholder="Reply #ID" style="width:88px; padding:3px 7px; font-size:0.75rem;" aria-label="Reply to message ID" />
+          <label class="msg-meta-text" style="display:flex; align-items:center; gap:4px;">
+            <input type="checkbox" id="pin-msg" /> Pin
+          </label>
         </div>
       </div>
-      <div id="tasks-list" style="display:flex; flex-direction:column; gap:8px;"></div>
-    </div>
 
-    <div class="card">
-      <h2><span>Architecture Decisions & Votes</span></h2>
-      <div style="display:flex; flex-direction:column; gap:6px; border-bottom:1px solid var(--border); padding-bottom:10px;">
-        <input id="decision-topic" type="text" placeholder="Decision topic..." aria-label="Decision Topic" />
-        <textarea id="decision-proposal" placeholder="Proposal details for multi-agent vote..." style="min-height:48px;" aria-label="Decision Proposal"></textarea>
-        <button onclick="createProposal()" class="secondary">Propose Decision</button>
+      <div id="composer-warning" class="msg-meta-text" style="color:var(--rose);" hidden></div>
+
+      <div class="composer-row">
+        <textarea id="post-content" placeholder="Message the room or @mention an agent... (Enter to send, Shift+Enter for new line)" aria-label="Message Content" oninput="validateComposerDraft()"></textarea>
+        <button id="send-msg-btn" onclick="postMessage()" style="padding:10px 18px; border-radius:12px;">Send</button>
       </div>
-      <div id="decisions-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+  </main>
+
+  <!-- COLUMN 3: COMPACT TASKS & DECISIONS DRAWER -->
+  <aside class="right-drawer" id="right-drawer" aria-label="Tasks and Approvals">
+    <div class="drawer-scroll">
+      <!-- Tasks Section -->
+      <div>
+        <div class="section-hdr">
+          <span>Project Tasks</span>
+        </div>
+        <div class="compact-card" style="margin-bottom:8px;">
+          <input id="new-task-title" type="text" placeholder="Assign a task..." aria-label="New Task Title" />
+          <div style="display:flex; gap:6px;">
+            <select id="new-task-priority" aria-label="New Task Priority" style="width:92px;">
+              <option value="high">High</option>
+              <option value="medium" selected>Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <input id="new-task-owner" type="text" placeholder="@agent" style="flex:1;" aria-label="Assign Task To" />
+            <button id="add-task-btn" onclick="createTask()">+ Task</button>
+          </div>
+        </div>
+        <div id="tasks-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <!-- Decisions & Approvals Section -->
+      <div>
+        <div class="section-hdr">
+          <span>Decisions &amp; Approvals</span>
+          <button onclick="toggleDecisionForm()" class="secondary" style="padding:2px 7px; font-size:0.72rem;">+ Propose</button>
+        </div>
+        <div id="decision-form-box" class="compact-card" style="margin-bottom:8px;" hidden>
+          <input id="decision-topic" type="text" placeholder="Decision topic..." aria-label="Decision Topic" />
+          <textarea id="decision-proposal" placeholder="Proposal summary..." style="min-height:44px;" aria-label="Decision Proposal"></textarea>
+          <button onclick="createProposal()">Submit Proposal</button>
+        </div>
+        <div id="decisions-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- AGENT PROFILE MODAL (Shown when clicking an agent) -->
+<div id="agent-modal" class="modal-backdrop" onclick="closeModal('agent-modal')" hidden>
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <strong id="modal-agent-title" style="font-size:1rem;">Agent Profile</strong>
+      <button class="secondary" onclick="closeModal('agent-modal')" style="padding:3px 8px;">Close</button>
+    </div>
+    <div class="meta-grid">
+      <div class="meta-box">
+        <div class="meta-label">Model</div>
+        <div class="meta-val" id="modal-agent-model">-</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Surface / Client</div>
+        <div class="meta-val" id="modal-agent-surface">-</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Role</div>
+        <div class="meta-val" id="modal-agent-role">-</div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-label">Status</div>
+        <div class="meta-val" id="modal-agent-status">-</div>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button id="modal-agent-mention-btn">Mention in Chat</button>
     </div>
   </div>
 </div>
 
+<!-- CREATE PROJECT MODAL -->
+<div id="project-modal" class="modal-backdrop" onclick="closeModal('project-modal')" hidden>
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <strong style="font-size:1rem;">Create Project</strong>
+      <button class="secondary" onclick="closeModal('project-modal')" style="padding:3px 8px;">Close</button>
+    </div>
+    <input id="new-proj-id" type="text" placeholder="Project slug (e.g. angie)" />
+    <input id="new-proj-name" type="text" placeholder="Display name (e.g. Angie)" />
+    <input id="new-proj-repo" type="text" placeholder="Repository path (optional)" />
+    <div style="display:flex; justify-content:flex-end; gap:8px;">
+      <button onclick="createNewProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS & PROGRESSIVE DISCLOSURE MODAL -->
+<div id="settings-modal" class="modal-backdrop" onclick="closeModal('settings-modal')" hidden>
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <strong style="font-size:1rem;">Workspace Settings</strong>
+      <button class="secondary" onclick="closeModal('settings-modal')" style="padding:3px 8px;">Close</button>
+    </div>
+
+    <div class="meta-box">
+      <div class="meta-label">Active Workspace Path</div>
+      <div class="meta-val" id="settings-workspace-path">Local Workspace</div>
+    </div>
+
+    <div class="meta-box" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+      <input id="custom-agent-id" type="text" placeholder="Custom seat ID (optional)" style="flex:1;" aria-label="Custom Agent ID" />
+      <button id="check-in-btn" onclick="registerActiveAgent()" class="secondary">Check In / Heartbeat</button>
+    </div>
+
+    <!-- Progressive Disclosure: File Locks and Shared KV tucked inside Advanced tools -->
+    <details style="border:1px solid var(--border); border-radius:10px; padding:10px;">
+      <summary style="cursor:pointer; font-size:0.8125rem; font-weight:600;">Advanced Coordination (File Locks &amp; Shared Memory)</summary>
+      <div style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
+        <div>
+          <div class="section-hdr"><span>File Locks (<span id="lock-count">0</span>)</span></div>
+          <div id="locks-list" style="display:flex; flex-direction:column; gap:6px; margin-bottom:6px;"></div>
+          <div style="display:flex; gap:6px;">
+            <input id="lock-filepath" type="text" placeholder="e.g. shared/app.py" style="flex:1;" aria-label="File path to lock" />
+            <button onclick="acquireLock()" class="secondary">Lock</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-hdr"><span>Shared KV Memory</span></div>
+          <div id="kv-list" style="display:flex; flex-direction:column; gap:6px; margin-bottom:6px;"></div>
+          <div style="display:flex; gap:6px;">
+            <input id="kv-key" type="text" placeholder="Key" style="width:38%;" aria-label="Memory Key" />
+            <input id="kv-val" type="text" placeholder="Value" style="flex:1;" aria-label="Memory Value" />
+            <button onclick="setKv()" class="secondary">Save</button>
+          </div>
+        </div>
+      </div>
+    </details>
+  </div>
+</div>
+
 <script>
+  window.__ACH_OWNER_TOKEN__ = "__ACH_LOCAL_OWNER_TOKEN__";
+
   let currentState = null;
+  let activeProject = '';
   let activeChannel = 'all';
-  let lastMessageCount = 0;
+  let filterNeedsMe = false;
+  let searchQuery = '';
+  const MESSAGE_WINDOW_SIZE = 80;
+  // Mirrors RESERVED_HUMAN_IDS in collab.py: the human seats are not tag targets.
+  const HUMAN_IDS = ['human', 'human-director', 'owner', 'kenny', 'kenny-wallace'];
+  let messageWindowEndId = null;
+  let lastRenderedMessageId = null;
+  let messageScrollTarget = 'end';
   let lastRenderedMessages = null;
+  let latestEventSeq = 0;
 
   function getActiveAgent() {
     const custom = document.getElementById('custom-agent-id').value.trim();
@@ -439,7 +902,7 @@
     const opt = sel.options[sel.selectedIndex];
     return {
       id: custom || sel.value,
-      model: custom ? 'Custom agent (self-reported)' : (opt ? opt.getAttribute('data-model') : 'Custom agent'),
+      model: custom ? 'Custom agent' : (opt ? opt.getAttribute('data-model') : 'Human Owner'),
       surface: custom ? 'dashboard' : (opt ? opt.getAttribute('data-surface') : 'dashboard'),
       role: custom ? 'Collaborator' : (opt ? opt.getAttribute('data-role') : 'Collaborator')
     };
@@ -453,6 +916,39 @@
     const notice = document.getElementById('app-notice');
     notice.textContent = message;
     notice.hidden = !message;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function formatMentions(escapedText) {
+    return escapedText
+      .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+      .replace(/(@[a-zA-Z0-9_-]+)/g, '<span class="mention-pill">$1</span>');
+  }
+
+  function validateComposerDraft() {
+    const val = document.getElementById('post-content').value;
+    const warn = document.getElementById('composer-warning');
+    if (val.indexOf('\u2014') !== -1) {
+      warn.textContent = 'House Rule Check: Em dash detected. Use a hyphen or colon instead.';
+      warn.hidden = false;
+      return false;
+    }
+    if (val.toLowerCase().indexOf('d:\\va') !== -1) {
+      warn.textContent = 'Policy Check: Path D:\\va is on hold and blocked.';
+      warn.hidden = false;
+      return false;
+    }
+    warn.hidden = true;
+    return true;
   }
 
   async function apiPost(path, payload) {
@@ -483,11 +979,13 @@
       model: a.model,
       surface: a.surface,
       role: a.role,
-      status: 'online (dashboard)'
+      status: 'online',
+      project_id: activeProject || 'default'
     });
   }
 
   async function postMessage() {
+    if (!validateComposerDraft()) return;
     const a = getActiveAgent();
     const contentEl = document.getElementById('post-content');
     const button = document.getElementById('send-msg-btn');
@@ -501,14 +999,19 @@
       return;
     }
     button.disabled = true;
-    const result = await apiPost('/api/post', {
+    const payload = {
       sender: a.id,
       model: a.model,
       channel: channel,
       content: content,
       reply_to: replyRaw ? replyId : null,
-      pin: document.getElementById('pin-msg').checked
-    });
+      pin: document.getElementById('pin-msg').checked,
+      project_id: activeProject || 'default'
+    };
+    if ((a.id === 'human' || a.id === 'human-director') && window.__ACH_OWNER_TOKEN__) {
+      payload.owner_token = window.__ACH_OWNER_TOKEN__;
+    }
+    const result = await apiPost('/api/post', payload);
     button.disabled = false;
     if (result) {
       if (contentEl.value.trim() === content) contentEl.value = '';
@@ -524,12 +1027,13 @@
     const title = titleEl.value.trim();
     if (!title) return;
     const priority = document.getElementById('new-task-priority').value;
-    const owner = document.getElementById('new-task-owner').value.trim();
+    const owner = document.getElementById('new-task-owner').value.trim().replace(/^@/, '');
     const result = await apiPost('/api/task/add', {
       created_by: a.id,
       title: title,
       priority: priority,
-      owner: owner
+      owner: owner,
+      project_id: activeProject || 'default'
     });
     if (result) {
       titleEl.value = '';
@@ -556,12 +1060,40 @@
     });
   }
 
+  async function ownerApproveEntity(entityType, entityId, action) {
+    await apiPost('/api/approve', {
+      entity_type: entityType,
+      entity_id: entityId,
+      action: action,
+      actor: 'human-director',
+      project_id: activeProject || 'default',
+      owner_token: window.__ACH_OWNER_TOKEN__
+    });
+  }
+
+  async function createNewProject() {
+    const pid = document.getElementById('new-proj-id').value.trim();
+    const name = document.getElementById('new-proj-name').value.trim();
+    const repo = document.getElementById('new-proj-repo').value.trim();
+    if (!pid || !name) return;
+    const res = await apiPost('/api/project/create', {
+      project_id: pid,
+      name: name,
+      repo_path: repo,
+      created_by: 'human-director'
+    });
+    if (res) {
+      closeModal('project-modal');
+      selectProject(pid);
+    }
+  }
+
   async function acquireLock() {
     const a = getActiveAgent();
     const fpEl = document.getElementById('lock-filepath');
     const fp = fpEl.value.trim();
     if (!fp) return;
-    const result = await apiPost('/api/lock', { filepath: fp, agent_id: a.id, reason: 'Editing through the dashboard' });
+    const result = await apiPost('/api/lock', { filepath: fp, agent_id: a.id, reason: 'Dashboard lock' });
     if (result) fpEl.value = '';
   }
 
@@ -575,7 +1107,7 @@
     const k = document.getElementById('kv-key').value.trim();
     const v = document.getElementById('kv-val').value.trim();
     if (!k) return;
-    const result = await apiPost('/api/kv', { key: k, value: v, agent_id: a.id });
+    const result = await apiPost('/api/kv', { key: k, value: v, agent_id: a.id, project_id: activeProject || 'default' });
     if (result) {
       document.getElementById('kv-key').value = '';
       document.getElementById('kv-val').value = '';
@@ -589,17 +1121,37 @@
     const topic = topicEl.value.trim();
     const proposal = propEl.value.trim();
     if (!topic || !proposal) return;
-    const result = await apiPost('/api/propose', { agent_id: a.id, topic: topic, proposal: proposal });
-    if (result) { topicEl.value = ''; propEl.value = ''; }
+    const result = await apiPost('/api/propose', {
+      agent_id: a.id,
+      topic: topic,
+      proposal: proposal,
+      project_id: activeProject || 'default'
+    });
+    if (result) {
+      topicEl.value = '';
+      propEl.value = '';
+      document.getElementById('decision-form-box').hidden = true;
+    }
   }
 
   async function castVote(decisionId, vote) {
     const a = getActiveAgent();
+    if ((a.id === 'human' || a.id === 'human-director') && window.__ACH_OWNER_TOKEN__) {
+      await ownerApproveEntity('decision', decisionId, vote);
+      return;
+    }
     await apiPost('/api/vote', { decision_id: decisionId, agent_id: a.id, vote: vote });
+  }
+
+  function selectProject(projId) {
+    activeProject = projId;
+    resetMessageWindow();
+    if (currentState) renderState(currentState);
   }
 
   function selectChannel(ch) {
     activeChannel = ch;
+    resetMessageWindow();
     document.querySelectorAll('.channel-tab').forEach(btn => {
       const selected = btn.getAttribute('data-channel') === ch;
       btn.classList.toggle('active', selected);
@@ -611,6 +1163,103 @@
     if (currentState) renderState(currentState);
   }
 
+  function toggleNeedsMeFilter() {
+    filterNeedsMe = !filterNeedsMe;
+    resetMessageWindow();
+    document.getElementById('filter-needs-btn').classList.toggle('approve-btn', filterNeedsMe);
+    if (currentState) renderState(currentState);
+  }
+
+  function onSearchInput() {
+    searchQuery = document.getElementById('chat-search').value.trim().toLowerCase();
+    resetMessageWindow();
+    if (currentState) renderState(currentState);
+  }
+
+  function resetMessageWindow() {
+    messageWindowEndId = null;
+    messageScrollTarget = 'end';
+  }
+
+  function filteredMessages(state, options) {
+    // options.needsMeOnly reports what the Needs My Input filter would show,
+    // without disturbing the filter the reader already has switched on.
+    const needsMeOnly = Boolean(options && options.needsMeOnly);
+    return state.messages.filter(m => {
+      if (activeProject && (m.project_id || 'default') !== activeProject) return false;
+      if (activeChannel !== 'all' && m.channel !== activeChannel) return false;
+      if ((filterNeedsMe || needsMeOnly) && !messageNeedsHuman(m)) return false;
+      const hay = (String(m.sender || '') + ' ' + String(m.channel || '') + ' ' + String(m.content || '')).toLowerCase();
+      return !searchQuery || hay.includes(searchQuery);
+    });
+  }
+
+  function messageWindowBounds(messages) {
+    const nextIndex = messageWindowEndId === null ? -1 : messages.findIndex(m => m.id > messageWindowEndId);
+    const end = nextIndex === -1 ? messages.length : nextIndex;
+    return { start: Math.max(0, end - MESSAGE_WINDOW_SIZE), end };
+  }
+
+  function loadEarlierMessages() {
+    if (!currentState) return;
+    const messages = filteredMessages(currentState);
+    const { start } = messageWindowBounds(messages);
+    if (start === 0) return;
+    messageWindowEndId = messages[start - 1].id;
+    messageScrollTarget = 'start';
+    renderState(currentState);
+  }
+
+  function loadNewerMessages() {
+    if (!currentState) return;
+    const messages = filteredMessages(currentState);
+    const { end } = messageWindowBounds(messages);
+    const nextEnd = Math.min(messages.length, end + MESSAGE_WINDOW_SIZE);
+    if (nextEnd === end) return;
+    messageWindowEndId = nextEnd === messages.length ? null : messages[nextEnd - 1].id;
+    messageScrollTarget = 'start';
+    renderState(currentState);
+  }
+
+  function showLatestMessages() {
+    resetMessageWindow();
+    if (currentState) renderState(currentState);
+  }
+
+  async function toggleActiveProjectHold(targetStatus) {
+    if (!activeProject) return;
+    await apiPost('/api/project/update', {
+      project_id: activeProject,
+      status: targetStatus,
+      actor: 'human-director'
+    });
+  }
+
+  function toggleLeftSidebar() {
+    const sb = document.getElementById('left-sidebar');
+    sb.hidden = !sb.hidden;
+  }
+
+  function toggleRightDrawer() {
+    const drawer = document.getElementById('right-drawer');
+    drawer.hidden = !drawer.hidden;
+  }
+
+  function toggleDecisionForm() {
+    const box = document.getElementById('decision-form-box');
+    box.hidden = !box.hidden;
+  }
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    document.getElementById('theme-toggle-btn').textContent = next === 'dark' ? 'Light Mode' : 'Dark Mode';
+  }
+
+  function openModal(id) { document.getElementById(id).hidden = false; }
+  function closeModal(id) { document.getElementById(id).hidden = true; }
+
   function setReplyTo(msgId, sender) {
     document.getElementById('reply-to-id').value = msgId;
     const ta = document.getElementById('post-content');
@@ -620,160 +1269,316 @@
     ta.focus();
   }
 
-  function escapeHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  function insertMentionText(mention) {
+    const ta = document.getElementById('post-content');
+    ta.value = ta.value + (ta.value && !ta.value.endsWith(' ') ? ' ' : '') + mention + ' ';
+    ta.focus();
+  }
+
+  function openAgentModal(agentId) {
+    if (!currentState) return;
+    const a = currentState.agents.find(x => x.id === agentId);
+    if (!a) return;
+    document.getElementById('modal-agent-title').textContent = a.id;
+    document.getElementById('modal-agent-model').textContent = a.model || 'Unknown';
+    document.getElementById('modal-agent-surface').textContent = a.surface || 'Local CLI';
+    document.getElementById('modal-agent-role').textContent = a.role || 'Collaborator';
+    document.getElementById('modal-agent-status').textContent = a.status || 'online';
+    document.getElementById('modal-agent-mention-btn').onclick = () => {
+      closeModal('agent-modal');
+      insertMentionText('@' + a.id);
+    };
+    openModal('agent-modal');
+  }
+
+  function avatarClass(id) {
+    const clean = String(id || '').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    return 'avatar ' + clean;
+  }
+
+  function initials(id) {
+    return String(id || 'AG').replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'AG';
+  }
+
+  function messageNeedsHuman(m) {
+    const text = String(m.content || '').toLowerCase();
+    return text.includes('@human') || text.includes('@kenny') || text.includes('waiting on owner');
   }
 
   function renderState(state) {
-    state = Object.assign({ agents: [], locks: [], kv_store: [], messages: [], tasks: [], decisions: [] }, state);
+    state = Object.assign({ projects: [], agents: [], locks: [], kv_store: [], messages: [], tasks: [], decisions: [] }, state);
     currentState = state;
-    document.getElementById('sync-indicator').textContent = 'Connected · ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    if (state.latest_event_seq) latestEventSeq = state.latest_event_seq;
 
-    // Agents
+    document.getElementById('sync-indicator').textContent = 'Live · ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    if (state.workspace) {
+      document.getElementById('settings-workspace-path').textContent = state.workspace;
+    }
+
+    // Projects Sidebar
+    const rawProjects = state.projects.length ? state.projects : [{ id: 'default', name: 'Main Workspace', status: 'active' }];
+    const projects = rawProjects.length > 1
+      ? rawProjects.filter(p => p.id !== 'default' || state.messages.some(m => (m.project_id || 'default') === 'default') || state.tasks.some(t => (t.project_id || 'default') === 'default'))
+      : rawProjects;
+    const currentProjObj = projects.find(p => p.id === activeProject);
+    document.getElementById('active-project-label').textContent = currentProjObj ? currentProjObj.name : 'All Projects';
+    const isCurrentHold = Boolean(currentProjObj && currentProjObj.status === 'on_hold');
+    document.getElementById('paused-banner').hidden = !isCurrentHold;
+    document.getElementById('hold-project-btn').hidden = !currentProjObj || isCurrentHold;
+
+    const projHtml = [
+      `<button class="project-btn ${activeProject === '' ? 'active' : ''}" data-action="select-project" data-project-id="">
+        <span style="display:flex; align-items:center; gap:8px;"><span class="proj-dot active"></span>All Projects</span>
+        <span class="msg-meta-text">${state.messages.length}</span>
+      </button>`
+    ].concat(projects.map(p => {
+      const count = state.messages.filter(m => (m.project_id || 'default') === p.id).length;
+      const isHold = p.status === 'on_hold';
+      return `
+        <button class="project-btn ${activeProject === p.id ? 'active' : ''}" data-action="select-project" data-project-id="${escapeHtml(p.id)}">
+          <span style="display:flex; align-items:center; gap:8px; min-width:0;">
+            <span class="proj-dot ${escapeHtml(p.status)}"></span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(p.name || p.id)}</span>
+          </span>
+          ${isHold ? '<span class="status-pill blocked">Hold</span>' : `<span class="msg-meta-text">${count}</span>`}
+        </button>
+      `;
+    })).join('');
+    document.getElementById('projects-list').innerHTML = projHtml;
+
+    // Agents in Room
     document.getElementById('agent-count').textContent = state.agents.length;
     document.getElementById('agents-list').innerHTML = state.agents.map(a => `
-      <div class="agent-item">
-        <div class="agent-header">
-          <span><span class="status-dot"></span>${escapeHtml(a.id)}</span>
-          <span class="muted">${escapeHtml(a.surface)}</span>
+      <div class="agent-row" data-action="inspect-agent" data-agent-id="${escapeHtml(a.id)}">
+        <div class="${avatarClass(a.id)}">
+          ${escapeHtml(initials(a.id))}
+          <span class="presence-ring"></span>
         </div>
-        <div class="agent-model">${escapeHtml(a.model)}</div>
-        <div class="muted">${escapeHtml(a.role)} — <code>${escapeHtml(a.status)}</code></div>
-      </div>
-    `).join('') || '<div class="empty-state">No agents registered.</div>';
-
-    // Locks
-    document.getElementById('lock-count').textContent = state.locks.length;
-    document.getElementById('locks-list').innerHTML = state.locks.map(l => `
-      <div class="lock-item">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-          <code>${escapeHtml(l.filepath)}</code>
-          <button class="secondary" style="padding:3px 6px; min-height:26px; font-size:.62rem;" data-action="unlock" data-filepath="${escapeHtml(l.filepath)}">Unlock</button>
+        <div class="agent-info">
+          <div class="agent-name">${escapeHtml(a.id)}</div>
+          <div class="agent-sub">${escapeHtml(a.role || a.surface || 'Online')}</div>
         </div>
-        <div class="muted">By <b>${escapeHtml(l.owner)}</b>: ${escapeHtml(l.reason)}</div>
       </div>
-    `).join('') || '<div class="empty-state">No files locked.</div>';
+    `).join('') || '<div class="msg-meta-text" style="padding:4px 6px;">No agents connected yet.</div>';
 
-    // KV
-    document.getElementById('kv-list').innerHTML = state.kv_store.map(item => `
-      <div class="lock-item">
-        <b><code>${escapeHtml(item.key)}</code></b>: ${escapeHtml(item.value)}
-        <div class="muted">set by ${escapeHtml(item.updated_by)}</div>
-      </div>
-    `).join('') || '<div class="empty-state">No shared memory entries.</div>';
+    // Tag chips follow the live roster, so the bar cannot offer an agent who is
+    // not in the room or hide one who is. Human seats are not tag targets.
+    const taggable = Array.from(new Set(state.agents
+      .map(a => String(a.id || '').trim())
+      .filter(id => id && !HUMAN_IDS.includes(id.toLowerCase()))));
+    document.getElementById('mention-chips').innerHTML = ['@all']
+      .concat(taggable.map(id => '@' + id))
+      .map(m => `<button type="button" class="tag-chip" data-action="mention" data-mention="${escapeHtml(m)}">${escapeHtml(m)}</button>`)
+      .join('');
 
-    // Messages
+    // Messages Feed (Live Chat Centerpiece)
     const msgContainer = document.getElementById('messages-list');
-    const filtered = state.messages.filter(m => activeChannel === 'all' || m.channel === activeChannel);
-    const shouldScroll = msgContainer.scrollTop + msgContainer.clientHeight >= msgContainer.scrollHeight - 80 || state.messages.length !== lastMessageCount;
-    lastMessageCount = state.messages.length;
+    // Count in the same scope as the feed below, so the badge cannot point at an
+    // empty view once a channel or a search narrows the list.
+    const needsCount = filteredMessages(state, { needsMeOnly: true }).length;
+    document.getElementById('needs-me-count').textContent = needsCount;
 
-    const messageHtml = filtered.map(m => {
-      const safeSenderClass = 'sender-' + String(m.sender).replace(/[^a-zA-Z0-9_-]/g, '-');
-      const replyTag = m.reply_to ? `<span class="badge">↪ #${escapeHtml(m.reply_to)}</span>` : '';
-      const pinTag = m.pinned ? `<span class="badge" style="color:var(--warn)">Pinned</span>` : '';
-      return `
-        <div class="msg ${safeSenderClass}" id="msg-${escapeHtml(m.id)}">
-          <div class="msg-meta">
-            <div class="msg-author">
-              <span class="msg-sender">${escapeHtml(m.sender)}</span>
-              ${m.model ? `<span class="badge">${escapeHtml(m.model)}</span>` : ''}
-              <span class="badge">#${escapeHtml(m.channel)}</span>
-              ${replyTag}
-              ${pinTag}
-            </div>
-            <div class="msg-details">
-              <span>#${escapeHtml(m.id)} · ${escapeHtml(formatTime(m.created_at))}</span>
-              <button class="secondary reply-button" data-action="reply" data-message-id="${escapeHtml(m.id)}" data-sender="${escapeHtml(m.sender)}" aria-label="Reply to message ${escapeHtml(m.id)}">Reply ↗</button>
-            </div>
+    const filtered = filteredMessages(state);
+    const nearBottom = msgContainer.scrollTop + msgContainer.clientHeight >= msgContainer.scrollHeight - 80;
+    // Anchor a reader's page by ID before a new snapshot shifts the live tail.
+    if (messageScrollTarget === null && messageWindowEndId === null && !nearBottom && lastRenderedMessageId !== null) {
+      messageWindowEndId = lastRenderedMessageId;
+    }
+    const { start, end } = messageWindowBounds(filtered);
+    const olderCount = start;
+    const newerCount = filtered.length - end;
+    const windowed = filtered.slice(start, end);
+    lastRenderedMessageId = windowed.length ? windowed[windowed.length - 1].id : null;
+    const scrollTarget = messageScrollTarget || (messageWindowEndId === null && nearBottom ? 'end' : null);
+    const previousScrollTop = msgContainer.scrollTop;
+
+    const loadOlderBtnHtml = olderCount > 0
+      ? `<div style="text-align:center; padding:4px 0;"><button class="secondary" style="font-size:0.75rem; padding:4px 12px;" data-action="load-earlier">Load earlier messages (${olderCount} older)</button></div>`
+      : '';
+    const newerButtonsHtml = messageWindowEndId !== null
+      ? `<div style="display:flex; justify-content:center; gap:8px; padding:4px 0;">
+          ${newerCount > 0 ? `<button class="secondary" data-action="load-newer">Load newer messages (${newerCount} newer)</button>` : ''}
+          <button class="secondary" data-action="show-latest">Jump to latest</button>
+        </div>`
+      : '';
+
+    let lastDayLabel = null;
+    const emptyStateHtml = state.messages.length === 0
+      ? 'No messages on this board yet. Start the live chat below!'
+      : 'No messages match this view. Clear the search, channel, or filter to see more.';
+    const messageHtml = loadOlderBtnHtml + (windowed.map(m => {
+      const dayLabel = formatDay(m.created_at);
+      const dayDivider = dayLabel && dayLabel !== lastDayLabel
+        ? `<div class="day-divider"><span>${escapeHtml(dayLabel)}</span></div>`
+        : '';
+      lastDayLabel = dayLabel;
+      const isHuman = m.sender === 'human' || m.sender === 'human-director';
+      const needsOwner = messageNeedsHuman(m);
+      const replyTag = m.reply_to ? `<span class="msg-meta-text">reply to #${escapeHtml(m.reply_to)}</span>` : '';
+      const pinTag = m.pinned ? `<span class="status-pill review">Pinned</span>` : '';
+      return dayDivider + `
+        <div class="msg-card ${isHuman ? 'is-human' : ''} ${needsOwner ? 'needs-owner' : ''}" id="msg-${escapeHtml(m.id)}">
+          <div class="${avatarClass(m.sender)}" data-action="inspect-agent" data-agent-id="${escapeHtml(m.sender)}" style="cursor:pointer;">
+            ${escapeHtml(initials(m.sender))}
           </div>
-          <div class="msg-body">${escapeHtml(m.content)}</div>
+          <div class="msg-main">
+            <div class="msg-header">
+              <div class="msg-author-group">
+                <span class="msg-sender">${escapeHtml(m.sender)}</span>
+                <span class="msg-meta-text">#${escapeHtml(m.channel)}</span>
+                <span class="msg-meta-text">${escapeHtml(formatTime(m.created_at))}</span>
+                ${replyTag}
+                ${pinTag}
+              </div>
+              <button class="secondary" style="padding:2px 8px; font-size:0.72rem;" data-action="reply" data-message-id="${escapeHtml(m.id)}" data-sender="${escapeHtml(m.sender)}" aria-label="Reply to message ${escapeHtml(m.id)}">Reply</button>
+            </div>
+            <div class="msg-body">${formatMentions(escapeHtml(m.content))}</div>
+          </div>
         </div>
       `;
-    }).join('') || '<div class="muted">No messages in this channel yet.</div>';
+    }).join('') || `<div class="msg-meta-text" style="text-align:center; padding:32px;">${emptyStateHtml}</div>`) + newerButtonsHtml;
 
-    // Avoid re-announcing an unchanged conversation to assistive technology.
     if (lastRenderedMessages !== messageHtml) {
       lastRenderedMessages = messageHtml;
       msgContainer.innerHTML = messageHtml;
-      if (shouldScroll) msgContainer.scrollTop = msgContainer.scrollHeight;
+      msgContainer.scrollTop = previousScrollTop;
+    }
+    if (scrollTarget === 'end') msgContainer.scrollTop = msgContainer.scrollHeight;
+    else if (scrollTarget === 'start') msgContainer.scrollTop = 0;
+    messageScrollTarget = null;
+
+    // Tasks Drawer (Active tasks up front, Completed tasks in collapsible drawer)
+    const projTasks = state.tasks.filter(t => !activeProject || (t.project_id || 'default') === activeProject);
+    const activeTasks = projTasks.filter(t => t.status !== 'done' && t.status !== 'canceled');
+    const doneTasks = projTasks.filter(t => t.status === 'done' || t.status === 'canceled');
+
+    function renderTaskCard(t) {
+      const needsYou = t.waiting_on === 'human' || t.status === 'waiting_user' || t.status === 'review';
+      return `
+        <div class="compact-card ${needsYou ? 'needs-you' : ''}">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+            <strong style="font-size:0.8125rem; line-height:1.35;">#${escapeHtml(t.id)} ${escapeHtml(t.title)}</strong>
+            <span class="status-pill ${escapeHtml(t.status)}">${escapeHtml(String(t.status).replace(/_/g, ' '))}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:var(--muted);">
+            <span>@${escapeHtml(t.owner || 'unclaimed')}</span>
+            <div style="display:flex; gap:4px;">
+              <button class="secondary" style="padding:2px 6px; font-size:0.7rem;" data-action="claim" data-task-id="${escapeHtml(t.id)}">Claim</button>
+              <button class="secondary" style="padding:2px 6px; font-size:0.7rem;" data-action="task-status" data-task-id="${escapeHtml(t.id)}" data-status="review">Review</button>
+              <button class="secondary" style="padding:2px 6px; font-size:0.7rem;" data-action="task-status" data-task-id="${escapeHtml(t.id)}" data-status="done">Done</button>
+            </div>
+          </div>
+          ${t.deliverable ? `<div class="msg-meta-text" style="color:var(--emerald);">Deliverable: ${escapeHtml(t.deliverable)}</div>` : ''}
+        </div>
+      `;
     }
 
-    // Tasks
-    document.getElementById('task-count').textContent = state.tasks.length;
-    document.getElementById('tasks-list').innerHTML = state.tasks.map(t => `
-      <div class="task-item">
-        <div class="task-topline">
-          <b>#${escapeHtml(t.id)} ${escapeHtml(t.title)}</b>
-          <span class="pill ${escapeHtml(t.status)}">${escapeHtml(String(t.status).replace(/_/g, ' '))}</span>
-        </div>
-        <div class="muted task-meta">
-          Priority: <b>${escapeHtml(t.priority)}</b> • Owner: <b>${escapeHtml(t.owner || 'unclaimed')}</b>
-        </div>
-        ${t.deliverable ? `<div class="deliverable">Deliverable: ${escapeHtml(t.deliverable)}</div>` : ''}
-        <div class="inline-actions">
-          <button class="secondary" data-action="claim" data-task-id="${escapeHtml(t.id)}">Claim</button>
-          <button class="secondary" data-action="task-status" data-task-id="${escapeHtml(t.id)}" data-status="in_progress">In Progress</button>
-          <button class="secondary" data-action="task-status" data-task-id="${escapeHtml(t.id)}" data-status="review">Review</button>
-          <button class="secondary" data-action="task-status" data-task-id="${escapeHtml(t.id)}" data-status="done">Done</button>
-        </div>
-      </div>
-    `).join('') || '<div class="empty-state">No tasks yet.</div>';
+    document.getElementById('task-count').textContent = activeTasks.length;
+    const activeTasksHtml = activeTasks.map(renderTaskCard).join('') || '<div class="msg-meta-text">No active tasks.</div>';
+    const doneTasksHtml = doneTasks.length > 0
+      ? `<details style="margin-top:6px;"><summary style="cursor:pointer; font-size:0.75rem; color:var(--muted); font-weight:600;">Completed &amp; Archived (${doneTasks.length})</summary><div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">${doneTasks.slice(-30).map(renderTaskCard).join('')}</div></details>`
+      : '';
+    document.getElementById('tasks-list').innerHTML = activeTasksHtml + doneTasksHtml;
 
-    // Decisions
-    document.getElementById('decisions-list').innerHTML = state.decisions.map(d => {
+    // Decisions & Owner Approvals
+    const projDecisions = state.decisions.filter(d => !activeProject || (d.project_id || 'default') === activeProject);
+    document.getElementById('decisions-list').innerHTML = projDecisions.map(d => {
       let votes = {};
       try { votes = JSON.parse(d.votes_json || '{}') || {}; } catch (e) {}
-      const voteSummary = Object.entries(votes).map(([k, v]) => `<code>${escapeHtml(k)}</code>: <b>${escapeHtml(v && v.vote)}</b>`).join(', ');
+      const voteCount = Object.keys(votes).length;
+      const isApproved = d.owner_status === 'approved' || d.status === 'approved';
       return `
-        <div class="decision-item">
-          <div><b>#${escapeHtml(d.id)} ${escapeHtml(d.topic)}</b> <span class="badge">${escapeHtml(d.status)}</span></div>
-          <div style="margin-top:4px;">${escapeHtml(d.proposal)}</div>
-          <div class="muted" style="margin-top:4px;">Votes: ${voteSummary || 'none'}</div>
-          <div class="inline-actions">
-            <button class="secondary" data-action="vote" data-decision-id="${escapeHtml(d.id)}" data-vote="approve">Approve</button>
-            <button class="secondary" data-action="vote" data-decision-id="${escapeHtml(d.id)}" data-vote="reject">Reject</button>
+        <div class="compact-card ${!isApproved ? 'needs-you' : ''}">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
+            <strong style="font-size:0.8125rem;">${escapeHtml(d.topic)}</strong>
+            <span class="status-pill ${isApproved ? 'approved' : 'review'}">${isApproved ? 'Approved' : 'Pending'}</span>
+          </div>
+          <div style="font-size:0.78rem; color:var(--text-secondary);">${escapeHtml(d.proposal)}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+            <span class="msg-meta-text">${voteCount} peer vote(s)</span>
+            <div style="display:flex; gap:4px;">
+              <button class="approve-btn" style="padding:3px 8px; font-size:0.72rem;" data-action="vote" data-decision-id="${escapeHtml(d.id)}" data-vote="approve">Approve</button>
+              <button class="secondary" style="padding:3px 8px; font-size:0.72rem;" data-action="vote" data-decision-id="${escapeHtml(d.id)}" data-vote="reject">Reject</button>
+            </div>
           </div>
         </div>
       `;
-    }).join('') || '<div class="empty-state">No proposals yet.</div>';
+    }).join('') || '<div class="msg-meta-text">No open decisions.</div>';
+
+    // Advanced Settings: Locks & KV
+    document.getElementById('lock-count').textContent = state.locks.length;
+    document.getElementById('locks-list').innerHTML = state.locks.map(l => `
+      <div class="meta-box" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <div>
+          <code>${escapeHtml(l.filepath)}</code>
+          <div class="meta-label">By ${escapeHtml(l.owner)}: ${escapeHtml(l.reason)}</div>
+        </div>
+        <button class="secondary" style="padding:2px 7px; font-size:0.72rem;" data-action="unlock" data-filepath="${escapeHtml(l.filepath)}">Unlock</button>
+      </div>
+    `).join('') || '<div class="meta-label">No files locked.</div>';
+
+    document.getElementById('kv-list').innerHTML = state.kv_store.map(item => `
+      <div class="meta-box">
+        <b><code>${escapeHtml(item.key)}</code></b>: ${escapeHtml(item.value)}
+        <div class="meta-label">set by ${escapeHtml(item.updated_by)}</div>
+      </div>
+    `).join('') || '<div class="meta-label">No shared memory entries.</div>';
   }
 
+  // The day dividers carry the date, so a message stamp is a clock time only.
   function formatTime(value) {
     if (!value) return '';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
-    const today = new Date();
-    return date.toLocaleDateString() === today.toLocaleDateString()
-      ? date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
-      : date.toLocaleDateString([], {month: 'short', day: 'numeric'}) + ' · ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    return date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
   }
 
-  // Board content stays in data attributes, never in executable inline handlers.
+  function formatDay(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const today = new Date();
+    if (date.toLocaleDateString() === today.toLocaleDateString()) return 'Today';
+    const yesterday = new Date(today.getTime());
+    yesterday.setDate(today.getDate() - 1);
+    if (date.toLocaleDateString() === yesterday.toLocaleDateString()) return 'Yesterday';
+    const options = { weekday: 'short', month: 'short', day: 'numeric' };
+    if (date.getFullYear() !== today.getFullYear()) options.year = 'numeric';
+    return date.toLocaleDateString([], options);
+  }
+
+  // Delegated click handling (never inline executable board strings)
   document.addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-action]');
-    if (!button) return;
-    const { action } = button.dataset;
+    const target = event.target.closest('[data-action]');
+    if (!target) return;
+    const { action } = target.dataset;
     if (action === 'reply') {
-      const messageId = Number(button.dataset.messageId);
-      if (Number.isSafeInteger(messageId) && messageId > 0) setReplyTo(messageId, button.dataset.sender);
+      const messageId = Number(target.dataset.messageId);
+      if (Number.isSafeInteger(messageId) && messageId > 0) setReplyTo(messageId, target.dataset.sender);
+    } else if (action === 'mention') {
+      insertMentionText(target.dataset.mention);
+    } else if (action === 'select-project') {
+      selectProject(target.dataset.projectId || '');
+    } else if (action === 'load-earlier') {
+      loadEarlierMessages();
+    } else if (action === 'load-newer') {
+      loadNewerMessages();
+    } else if (action === 'show-latest') {
+      showLatestMessages();
+    } else if (action === 'inspect-agent') {
+      openAgentModal(target.dataset.agentId);
     } else if (action === 'unlock') {
-      releaseLock(button.dataset.filepath);
+      releaseLock(target.dataset.filepath);
     } else if (action === 'claim') {
-      const taskId = Number(button.dataset.taskId);
+      const taskId = Number(target.dataset.taskId);
       if (Number.isSafeInteger(taskId) && taskId > 0) claimTask(taskId);
     } else if (action === 'task-status') {
-      const taskId = Number(button.dataset.taskId);
-      const status = button.dataset.status;
+      const taskId = Number(target.dataset.taskId);
+      const status = target.dataset.status;
       if (Number.isSafeInteger(taskId) && taskId > 0 && ['in_progress', 'review', 'done'].includes(status)) updateTaskStatus(taskId, status);
     } else if (action === 'vote') {
-      const decisionId = Number(button.dataset.decisionId);
-      const vote = button.dataset.vote;
+      const decisionId = Number(target.dataset.decisionId);
+      const vote = target.dataset.vote;
       if (Number.isSafeInteger(decisionId) && decisionId > 0 && ['approve', 'reject'].includes(vote)) castVote(decisionId, vote);
     }
   });
@@ -789,15 +1594,38 @@
     }
   }
 
-  // Keyboard shortcut Ctrl+Enter / Cmd+Enter to send message
+  async function pollEventsLoop() {
+    while (true) {
+      try {
+        const res = await fetch('/api/events?since_seq=' + latestEventSeq + '&timeout=15');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.events && data.events.length > 0) {
+            await fetchState();
+          }
+        } else {
+          await new Promise(r => setTimeout(r, 2500));
+        }
+      } catch (e) {
+        await new Promise(r => setTimeout(r, 2500));
+      }
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('post-content').addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
         postMessage();
       }
     });
     fetchState();
-    setInterval(fetchState, 2000);
+    pollEventsLoop();
+    // pollEventsLoop already refetches on every board change, so a fast timer only
+    // repeats a multi-megabyte snapshot. Keep a slow safety net, and catch up when
+    // the tab becomes visible again.
+    setInterval(() => { if (!document.hidden) fetchState(); }, 60000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchState(); });
   });
 </script>
 </body>

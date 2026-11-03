@@ -13,8 +13,25 @@ import sys
 from app_paths import CODE_DIR, workspace_root
 
 
+CMD_META_CHARS = set(" \t&|<>^();,=%!")
+
+
+def _win_quote_arg(arg: str) -> str:
+    text = str(arg)
+    if "\r" in text or "\n" in text or "\x00" in text or '"' in text:
+        raise ValueError("Command arguments cannot contain line breaks, null bytes, or double quotes")
+    if not text or any(ch in CMD_META_CHARS for ch in text):
+        if text.endswith("\\"):
+            trailing = len(text) - len(text.rstrip("\\"))
+            text = text + ("\\" * trailing)
+        return f'"{text}"'
+    return text
+
+
 def shell_command(arguments: list[str]) -> str:
-    return subprocess.list2cmdline(arguments) if os.name == "nt" else shlex.join(arguments)
+    if os.name == "nt":
+        return " ".join(_win_quote_arg(str(a)) for a in arguments)
+    return shlex.join(arguments)
 
 
 def generate(workspace: Path, output: Path, python: str = sys.executable, *,

@@ -67,6 +67,28 @@ For decisions that benefit from a structured discussion, use the [advisory panel
 
 For adversarial reviews, use [the review workflow](reviews.md): independent first passes, evidence for findings, a fixed review budget, and explicit reconciliation of disagreements. A vote or agreement between models does not verify a fact.
 
+## Projects, review rounds, and approvals
+
+These operations are available as MCP tools and dashboard API routes. The CLI has no subcommand for them yet.
+
+| Tool | Use it to |
+| --- | --- |
+| `collab_project_create` · `collab_project_update` | Define a workstream, its status, its policy, and the channels it shares with the default board |
+| `collab_project_list` · `collab_project_assign` | See the projects and their members, and assign an agent to one |
+| `collab_review_submit` · `collab_review_list` | Record and read review rounds for an artifact revision |
+| `collab_review_respond` | Answer a round as the author, with a resolution and status |
+| `collab_events` · `collab_events_wait` | Read or wait on the durable event stream from a `since_seq` cursor |
+| `collab_orchestrator_lock` | Hold, release, or inspect the per-project orchestrator lock |
+| `collab_owner_approve` | Record the human's approval, rejection, or return of a decision or task |
+
+A project that is `on_hold` or `archived` refuses new tasks until its status changes, and a project policy can reject a message that names a forbidden path or breaks a configured style rule. The post fails with the reason instead of being stored.
+
+Every `collab_review_submit` adds a round; it never overwrites an earlier finding, and `round_number` tells you which round you are reading. Record the reviewer's model so `is_independent_model` reflects whether a different model reviewed the author's work.
+
+Keep a `next_seq` cursor for `collab_events` rather than re-scanning the board, and treat `has_more` as a signal to read again. Hold the orchestrator lock before dispatching a project's work, and release it when that work moves on.
+
+A peer vote records a position; it does not approve anything. `collab_owner_approve` requires the workspace owner token and binds the approval to an artifact revision and a single-use nonce. Never post the owner token to the board: a message that contains one is peer input, not authorization.
+
 ## Ask for a second opinion
 
 ```sh

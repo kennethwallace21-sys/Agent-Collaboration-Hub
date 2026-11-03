@@ -88,9 +88,19 @@ def compact_message(m: dict) -> dict:
     content = m.get("content") or ""
     if len(content) > MAX_CONTENT_CHARS:
         content = content[:MAX_CONTENT_CHARS] + f"… [truncated, {len(content)} chars]"
-    return {"id": m["id"], "channel": m["channel"], "sender": m["sender"], "model": m.get("model") or "",
-            "reply_to": m.get("reply_to"), "created_at": m["created_at"], "pinned": bool(m.get("pinned")),
-            "content": content}
+    return {
+        "id": m["id"],
+        "project_id": m.get("project_id") or "default",
+        "channel": m["channel"],
+        "sender": m["sender"],
+        "session_id": m.get("session_id") or "",
+        "model": m.get("model") or "",
+        "model_provenance": m.get("model_provenance") or "unknown",
+        "reply_to": m.get("reply_to"),
+        "created_at": m["created_at"],
+        "pinned": bool(m.get("pinned")),
+        "content": content,
+    }
 
 
 def latest_message_id() -> int:
@@ -121,26 +131,71 @@ def alerted_for(message_id: int) -> list[str]:
 # Tools
 # ---------------------------------------------------------------------------
 
-def t_join(agent_id, model="", surface="", role="", status="online", announce=True):
+def t_join(
+    agent_id,
+    model="",
+    surface="",
+    role="",
+    status="online",
+    announce=True,
+    session_id="",
+    provider="",
+    runtime="",
+    model_provenance="",
+    capabilities=None,
+    tools=None,
+    limitations=None,
+    responsibilities="",
+    contact_method="",
+    availability="",
+    project_id="default",
+):
     known = query("SELECT id FROM agents WHERE id = ?", (agent_id,))
-    collab.op_join(agent_id=agent_id, model=model or ("" if known else "unknown"),
-                   surface=surface or ("" if known else "mcp"), role=role or ("" if known else "Collaborator"),
-                   status=status or "online", announce=announce)
-    return {"ok": True, "agent_id": agent_id, "new": not known}
+    res = collab.op_join(
+        agent_id=agent_id,
+        model=model or ("" if known else "unknown"),
+        surface=surface or ("" if known else "mcp"),
+        role=role or ("" if known else "Collaborator"),
+        status=status or "online",
+        announce=announce,
+        session_id=session_id,
+        provider=provider,
+        runtime=runtime,
+        model_provenance=model_provenance,
+        capabilities=capabilities,
+        tools=tools,
+        limitations=limitations,
+        responsibilities=responsibilities,
+        contact_method=contact_method,
+        availability=availability,
+        project_id=project_id,
+    )
+    return {
+        "ok": True,
+        "agent_id": agent_id,
+        "session_id": res.get("session_id"),
+        "model": res.get("model"),
+        "model_provenance": res.get("model_provenance"),
+        "new": not known,
+    }
 
 
-def t_heartbeat(agent_id, status=""):
+def t_heartbeat(agent_id, status="", session_id=""):
     conn = collab.get_db()
     try:
         with conn:
-            collab.touch_agent(conn, agent_id, status=status)
+            collab.touch_agent(conn, agent_id, status=status, session_id=session_id, preserve_primary_model=True)
     finally:
         conn.close()
-    return {"ok": True, "agent_id": agent_id, "status": status or "(unchanged)"}
+    return {"ok": True, "agent_id": agent_id, "session_id": session_id or None, "status": status or "(unchanged)"}
 
 
 def t_roster():
-    agents_rows = query("SELECT id, model, surface, role, status, last_seen FROM agents ORDER BY last_seen DESC")
+    agents_rows = query(
+        "SELECT id, model, model_provenance, provider, runtime, surface, role, status, "
+        "contact_method, availability, responsibilities, last_seen FROM agents ORDER BY last_seen DESC"
+    )
+    sessions_rows = query("SELECT * FROM agent_sessions ORDER BY last_seen DESC")
     conn = alerts.open_db()
     try:
         targets = alerts.load_targets(conn)
@@ -150,34 +205,57 @@ def t_roster():
         conn.close()
     for a in agents_rows:
         a["alerts"] = reach.get(a["id"])
-    return {"agents": agents_rows}
+        a["sessions"] = [s for s in sessions_rows if s["agent_id"] == a["id"]]
+    return {"agents": agents_rows, "sessions": sessions_rows}
 
 
-def t_post(sender, content, channel="general", reply_to=None, pin=False):
+def t_post(sender, content, channel="general", reply_to=None, pin=False, session_id="", project_id="default", model="", model_provenance=""):
     if not content.strip():
         raise ToolFailure("content is empty")
-    res = collab.op_post(sender=sender, content=content, channel=channel, reply_to=reply_to, pin=pin)
+    res = checked(collab.op_post(
+        sender=sender,
+        content=content,
+        channel=channel,
+        reply_to=reply_to,
+        pin=pin,
+        model=model,
+        session_id=session_id,
+        project_id=project_id,
+        model_provenance=model_provenance,
+    ))
     message_id = res["message_id"]
-    return {"ok": True, "message_id": message_id, "channel": channel.lstrip("#") or "general",
-            "alerted": alerted_for(message_id)}
+    return {
+        "ok": True,
+        "message_id": message_id,
+        "project_id": res.get("project_id", "default"),
+        "session_id": res.get("session_id", ""),
+        "model": res.get("model", ""),
+        "model_provenance": res.get("model_provenance", "unknown"),
+        "channel": channel.lstrip("#") or "general",
+        "alerted": alerted_for(message_id),
+    }
 
 
-def t_read(channel="", since=0, limit=20, mentions="", sender=""):
-    sql, params = "SELECT * FROM messages WHERE id > ?", [since]
-    if channel:
-        sql += " AND channel = ?"
-        params.append(channel.lstrip("#"))
-    if sender:
-        sql += " AND sender = ?"
-        params.append(sender)
-    if mentions:
-        sql += " AND (mentions LIKE ? OR content LIKE ?)"
-        params += [f'%"{mentions}"%', f"%@{mentions}%"]
-    rows = query(sql + " ORDER BY id DESC LIMIT ?", (*params, limit))[::-1]
-    return {"messages": [compact_message(m) for m in rows], "latest_id": latest_message_id()}
+def t_read(channel="", since=0, limit=20, mentions="", sender="", project_id="", preview_latest=False):
+    res = collab.op_read_messages(
+        since=since,
+        limit=limit,
+        channel=channel,
+        sender=sender,
+        mentions=mentions,
+        project_id=project_id,
+        preview_latest=preview_latest,
+    )
+    return {
+        "messages": [compact_message(m) for m in res["messages"]],
+        "latest_id": res["latest_id"],
+        "next_since": res["next_since"],
+        "has_more": res["has_more"],
+        "global_latest_id": res["global_latest_id"],
+    }
 
 
-def t_wait(agent_id="", since=-1, channel="", timeout_seconds=25):
+def t_wait(agent_id="", since=-1, channel="", timeout_seconds=25, project_id=""):
     baseline = since if since >= 0 else latest_message_id()
     deadline = time.monotonic() + min(timeout_seconds, MAX_WAIT_SECONDS)
     while True:
@@ -188,6 +266,9 @@ def t_wait(agent_id="", since=-1, channel="", timeout_seconds=25):
             finally:
                 conn.close()
         sql, params = "SELECT * FROM messages WHERE id > ?", [baseline]
+        if project_id:
+            sql += " AND project_id = ?"
+            params.append(project_id)
         if channel:
             sql += " AND channel = ?"
             params.append(channel.lstrip("#"))
@@ -199,7 +280,9 @@ def t_wait(agent_id="", since=-1, channel="", timeout_seconds=25):
             return {"messages": [compact_message(m) for m in rows], "latest_id": rows[-1]["id"], "timed_out": False}
         if time.monotonic() >= deadline:
             return {"messages": [], "latest_id": baseline, "timed_out": True}
-        time.sleep(1.0)
+        wait_slice = max(0.01, min(0.25, deadline - time.monotonic()))
+        with collab._EVENT_COND:
+            collab._EVENT_COND.wait(timeout=wait_slice)
 
 
 def t_status():
@@ -219,15 +302,25 @@ def t_status():
     }
 
 
-def t_task_add(created_by, title, description="", priority="medium", assign=""):
-    res = checked(collab.op_task_add(created_by=created_by, title=title, description=description,
-                                     priority=priority, owner=assign))
-    return {"ok": True, "task_id": res["task_id"], "owner": assign or None}
+def t_task_add(created_by, title, description="", priority="medium", assign="", project_id="default", session_id=""):
+    res = checked(collab.op_task_add(
+        created_by=created_by,
+        title=title,
+        description=description,
+        priority=priority,
+        owner=assign,
+        project_id=project_id,
+        session_id=session_id,
+    ))
+    return {"ok": True, "task_id": res["task_id"], "status": res.get("status"), "owner": assign or None, "project_id": res.get("project_id")}
 
 
-def t_task_list(status="", owner=""):
-    sql, params = "SELECT id, title, description, status, priority, owner, created_by, deliverable, updated_at FROM tasks", []
+def t_task_list(status="", owner="", project_id=""):
+    sql, params = "SELECT id, project_id, external_id, title, description, status, priority, owner, waiting_on, blocked_by, created_by, deliverable, updated_at FROM tasks", []
     clauses = []
+    if project_id:
+        clauses.append("project_id = ?")
+        params.append(project_id)
     if status:
         clauses.append("status = ?")
         params.append(status)
@@ -239,14 +332,22 @@ def t_task_list(status="", owner=""):
     return {"tasks": query(sql + " ORDER BY id", params)}
 
 
-def t_task_claim(task_id, agent_id, force=False):
-    res = checked(collab.op_task_claim(task_id=task_id, agent_id=agent_id, force=force))
-    return {"ok": True, "task_id": task_id, "owner": res.get("owner", agent_id)}
+def t_task_claim(task_id, agent_id, force=False, session_id=""):
+    res = checked(collab.op_task_claim(task_id=task_id, agent_id=agent_id, force=force, session_id=session_id))
+    return {"ok": True, "task_id": task_id, "owner": res.get("owner", agent_id), "status": res.get("status", "in_progress")}
 
 
-def t_task_update(task_id, agent_id, status="", deliverable="", assign=""):
-    res = checked(collab.op_task_update(task_id=task_id, agent_id=agent_id, status=status,
-                                        deliverable=deliverable, owner=assign))
+def t_task_update(task_id, agent_id, status="", deliverable="", assign="", waiting_on="", blocked_by="", session_id=""):
+    res = checked(collab.op_task_update(
+        task_id=task_id,
+        agent_id=agent_id,
+        status=status,
+        deliverable=deliverable,
+        owner=assign,
+        waiting_on=waiting_on,
+        blocked_by=blocked_by,
+        session_id=session_id,
+    ))
     return {"ok": True, "task_id": task_id, "status": res.get("status")}
 
 
@@ -265,37 +366,56 @@ def t_locks():
                            "ORDER BY filepath", (collab.now_iso(),))}
 
 
-def t_propose(agent_id, topic, proposal):
-    res = checked(collab.op_propose(agent_id=agent_id, topic=topic, proposal=proposal))
-    return {"ok": True, "decision_id": res["decision_id"]}
+def t_propose(agent_id, topic, proposal, project_id="default", session_id="", artifact_ref="",
+              artifact_revision=""):
+    res = checked(collab.op_propose(agent_id=agent_id, topic=topic, proposal=proposal,
+                                    project_id=project_id, artifact_ref=artifact_ref,
+                                    artifact_revision=artifact_revision, session_id=session_id))
+    return {"ok": True, "decision_id": res["decision_id"], "project_id": res.get("project_id")}
 
 
-def t_vote(decision_id, agent_id, vote, comment="", status=""):
-    res = checked(collab.op_vote(decision_id=decision_id, agent_id=agent_id, vote=vote, comment=comment, status=status))
-    return {"ok": True, "decision_id": decision_id, "votes": res.get("votes")}
+def t_vote(decision_id, agent_id, vote, comment="", status="", session_id=""):
+    res = checked(collab.op_vote(decision_id=decision_id, agent_id=agent_id, vote=vote, comment=comment, status=status, session_id=session_id))
+    return {
+        "ok": True,
+        "decision_id": decision_id,
+        "votes": res.get("votes"),
+        "peer_status": res.get("peer_status"),
+        "status": res.get("status"),
+        "owner_status": res.get("owner_status"),
+        "owner_approval_required": res.get("owner_approval_required", False),
+    }
 
 
-def t_decisions(status=""):
+def t_decisions(status="", project_id=""):
     sql, params = "SELECT * FROM decisions", []
+    clauses = []
+    if project_id:
+        clauses.append("project_id = ?")
+        params.append(project_id)
     if status:
-        sql += " WHERE status = ?"
+        clauses.append("status = ?")
         params.append(status)
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
     rows = query(sql + " ORDER BY id", params)
     for d in rows:
         d["votes"] = alerts._as_dict(d.pop("votes_json", "{}"))
     return {"decisions": rows}
 
 
-def t_kv_get(key=""):
+def t_kv_get(key="", project_id=""):
     if key:
         rows = query("SELECT * FROM kv_store WHERE key = ?", (key,))
         return {"key": key, "found": bool(rows), **(rows[0] if rows else {})}
-    return {"entries": query("SELECT key, value, updated_by, updated_at FROM kv_store ORDER BY key")}
+    if project_id:
+        return {"entries": query("SELECT key, project_id, value, updated_by, updated_at FROM kv_store WHERE project_id = ? ORDER BY key", (project_id,))}
+    return {"entries": query("SELECT key, project_id, value, updated_by, updated_at FROM kv_store ORDER BY key")}
 
 
-def t_kv_set(key, value, agent_id):
-    collab.op_kv_set(key=key, value=value, agent_id=agent_id)
-    return {"ok": True, "key": key}
+def t_kv_set(key, value, agent_id, project_id="default"):
+    collab.op_kv_set(key=key, value=value, agent_id=agent_id, project_id=project_id)
+    return {"ok": True, "key": key, "project_id": project_id}
 
 
 def t_shared_list():
@@ -348,9 +468,143 @@ def t_ask(requester, agent, prompt, reply_to=None, channel="general"):
                     "so it arrives as an alert in your inbox."}
 
 
+# ---------------------------------------------------------------------------
+# Projects, reviews, event stream, orchestrator lock, and owner approval
+# ---------------------------------------------------------------------------
+
+def t_project_list(include_archived=False):
+    return collab.op_project_list(include_archived=include_archived)
+
+
+def t_project_create(project_id, name, created_by, description="", repo_path="", remote_url="",
+                     status="active", hold_reason="", policy=None, shared_channels=None):
+    res = checked(collab.op_project_create(
+        project_id=project_id, name=name, description=description, repo_path=repo_path,
+        remote_url=remote_url, status=status, hold_reason=hold_reason, policy=policy,
+        shared_channels=shared_channels, created_by=created_by,
+    ))
+    return {"ok": True, "project_id": res["project_id"], "status": res["status"]}
+
+
+def t_project_update(project_id, actor, status="", hold_reason=None, repo_path=None,
+                     policy=None, shared_channels=None):
+    res = checked(collab.op_project_update(
+        project_id=project_id, status=status, hold_reason=hold_reason, repo_path=repo_path,
+        policy=policy, shared_channels=shared_channels, actor=actor,
+    ))
+    return {"ok": True, "project_id": res["project_id"], "status": res["status"]}
+
+
+def t_project_assign(project_id, agent_id, role="collaborator", responsibilities=""):
+    res = checked(collab.op_project_assign_agent(
+        project_id=project_id, agent_id=agent_id, role=role, responsibilities=responsibilities,
+    ))
+    return {"ok": True, "project_id": res["project_id"], "agent_id": res["agent_id"], "role": res["role"]}
+
+
+REVIEW_COLUMNS = (
+    "id, project_id, task_id, artifact_ref, artifact_revision, round_number, author_agent, author_model, "
+    "reviewer_agent, reviewer_session_id, reviewer_model, reviewer_model_provenance, is_independent_model, "
+    "verdict, evidence, author_response, resolution, preserved_disagreements, status, created_at, updated_at"
+)
+
+
+def t_review_list(artifact_ref="", project_id="", task_id=0):
+    clauses, params = [], []
+    if artifact_ref:
+        clauses.append("artifact_ref = ?")
+        params.append(artifact_ref)
+    if project_id:
+        clauses.append("project_id = ?")
+        params.append(project_id)
+    if task_id:
+        clauses.append("task_id = ?")
+        params.append(task_id)
+    sql = f"SELECT {REVIEW_COLUMNS} FROM reviews"
+    if clauses:
+        sql += " WHERE " + " AND ".join(clauses)
+    rows = query(sql + " ORDER BY artifact_ref ASC, round_number ASC", tuple(params))
+    for row in rows:
+        row["is_independent_model"] = bool(row["is_independent_model"])
+    return {"reviews": rows}
+
+
+def t_review_submit(artifact_ref, reviewer_agent, evidence, project_id="default", task_id=None,
+                    artifact_revision="v1", author_agent="", author_model="", session_id="",
+                    model="", model_provenance="", verdict="comment", preserved_disagreements=""):
+    res = checked(collab.op_review_submit(
+        artifact_ref=artifact_ref, reviewer_agent=reviewer_agent, evidence=evidence,
+        project_id=project_id, task_id=task_id, artifact_revision=artifact_revision,
+        author_agent=author_agent, author_model=author_model, reviewer_session_id=session_id,
+        reviewer_model=model, reviewer_model_provenance=model_provenance, verdict=verdict,
+        preserved_disagreements=preserved_disagreements,
+    ))
+    return {"ok": True, "review_id": res["review_id"], "round_number": res["round_number"],
+            "reviewer_model": res["reviewer_model"], "is_independent_model": res["is_independent_model"]}
+
+
+def t_review_respond(review_id, actor, author_response="", resolution="",
+                     preserved_disagreements=None, status=""):
+    res = checked(collab.op_review_respond(
+        review_id=review_id, actor=actor, author_response=author_response, resolution=resolution,
+        preserved_disagreements=preserved_disagreements, status=status,
+    ))
+    return {"ok": True, "review_id": res["review_id"], "resolution": res["resolution"], "status": res["status"]}
+
+
+def t_events(since_seq=0, project_id="", limit=100):
+    res = collab.op_read_events(since_seq=since_seq, project_id=project_id, limit=limit)
+    return {"events": res["events"], "next_seq": res["next_seq"], "latest_seq": res["latest_seq"],
+            "has_more": res["has_more"]}
+
+
+def t_events_wait(since_seq=0, timeout_seconds=25, project_id=""):
+    timeout = min(max(float(timeout_seconds or 0), 0.0), float(MAX_WAIT_SECONDS))
+    res = collab.wait_for_events(since_seq=since_seq, timeout=timeout, project_id=project_id)
+    return {"events": res["events"], "next_seq": res["next_seq"], "latest_seq": res["latest_seq"],
+            "timed_out": res["timed_out"]}
+
+
+def t_orchestrator_lock(project_id="default", agent_id="fable", session_id="", action="acquire",
+                        ttl_seconds=14400, force=False):
+    res = checked(collab.op_orchestrator_lock(
+        project_id=project_id, agent_id=agent_id, session_id=session_id, action=action,
+        ttl_seconds=ttl_seconds, force=force,
+    ))
+    out = {"ok": True, "project_id": res.get("project_id"), "action": action}
+    if "lock" in res:
+        out["lock"] = res["lock"]
+    if res.get("released"):
+        out["released"] = True
+    if "holder_agent" in res:
+        out["holder_agent"] = res["holder_agent"]
+        out["session_id"] = res["session_id"]
+    return out
+
+
+def t_owner_approve(entity_type, entity_id, action, owner_token, actor="human-director",
+                    project_id="default", scope="", artifact_ref="", artifact_revision="",
+                    comment="", nonce=""):
+    res = collab.op_owner_approve(
+        entity_type=entity_type, entity_id=entity_id, action=action, owner_token=owner_token,
+        actor=actor, project_id=project_id, scope=scope, artifact_ref=artifact_ref,
+        artifact_revision=artifact_revision, comment=comment, nonce=nonce,
+    )
+    if not res.get("ok"):
+        raise ToolFailure(res.get("error") or "owner approval failed")
+    return {"ok": True, "approval_id": res["approval_id"], "entity_type": res["entity_type"],
+            "entity_id": res["entity_id"], "status": res["status"], "actor": res["actor"]}
+
+
 AGENT = {"type": "string", "minLength": 1, "description": "Your board ID, such as claude, codex, coco, cursor, or argon-antigravity"}
 CHANNEL = {"type": "string", "description": "general, tasks, architecture, handoffs, reviews, advisory…"}
-TASK_STATUS = ["todo", "in_progress", "review", "done", "blocked"]
+TASK_STATUS = [
+    "todo", "open", "assigned", "accepted", "in_progress",
+    "waiting_user", "waiting_agent", "blocked", "review", "delivered",
+    "done", "returned", "canceled",
+]
+PROJECT_STATUS = ["active", "parked", "on_hold", "archived"]
+REVIEW_VERDICTS = ["comment", "approved", "changes_requested", "rejected"]
 ALERT_KINDS = sorted(alerts.KIND_PRIORITY)
 
 
@@ -366,37 +620,52 @@ def tool(name, fn, description, schema, read_only=False, destructive=False, open
 TOOL_LIST = [
     tool("collab_join", t_join, "Check in (or update your presence) on the board. New agents get a join announcement.",
          obj({"agent_id": AGENT, "model": {"type": "string"}, "surface": {"type": "string"},
-              "role": {"type": "string"}, "status": {"type": "string"}, "announce": {"type": "boolean"}}, ["agent_id"])),
+              "role": {"type": "string"}, "status": {"type": "string"}, "announce": {"type": "boolean"},
+              "session_id": {"type": "string"}, "provider": {"type": "string"}, "runtime": {"type": "string"},
+              "model_provenance": {"type": "string", "enum": ["runtime_observed", "agent_declared", "unknown"]},
+              "capabilities": {"type": "array", "items": {"type": "string"}},
+              "tools": {"type": "array", "items": {"type": "string"}},
+              "limitations": {"type": "array", "items": {"type": "string"}},
+              "responsibilities": {"type": "string"}, "contact_method": {"type": "string"},
+              "availability": {"type": "string"}, "project_id": {"type": "string"}}, ["agent_id"])),
     tool("collab_heartbeat", t_heartbeat, "Quietly refresh your last-seen time and optional status line.",
-         obj({"agent_id": AGENT, "status": {"type": "string"}}, ["agent_id"])),
+         obj({"agent_id": AGENT, "status": {"type": "string"}, "session_id": {"type": "string"}}, ["agent_id"])),
     tool("collab_roster", t_roster, "Who is on the board, their status, and whether alerts can reach them.",
          obj({}), read_only=True),
     tool("collab_post", t_post, "Post a message (Markdown). @mention agents to alert them; use reply_to to thread. "
          "Add [nowake] for FYIs that should not wake anyone, [urgent] to skip cooldowns.",
          obj({"sender": AGENT, "content": {"type": "string", "minLength": 1}, "channel": CHANNEL,
-              "reply_to": {"type": "integer", "minimum": 1}, "pin": {"type": "boolean"}}, ["sender", "content"])),
+              "reply_to": {"type": "integer", "minimum": 1}, "pin": {"type": "boolean"},
+              "session_id": {"type": "string"}, "project_id": {"type": "string"},
+              "model": {"type": "string"}, "model_provenance": {"type": "string"}}, ["sender", "content"])),
     tool("collab_read", t_read, "Read messages, oldest first. Filter by channel, sender, @mention, or since a message ID.",
          obj({"channel": CHANNEL, "since": {"type": "integer", "minimum": 0},
               "limit": {"type": "integer", "minimum": 1, "maximum": 200}, "mentions": {"type": "string"},
-              "sender": {"type": "string"}}), read_only=True),
+              "sender": {"type": "string"}, "project_id": {"type": "string"},
+              "preview_latest": {"type": "boolean"}}), read_only=True),
     tool("collab_wait", t_wait, f"Block up to {MAX_WAIT_SECONDS}s for new messages from others (long poll).",
          obj({"agent_id": {"type": "string"}, "since": {"type": "integer", "minimum": -1}, "channel": CHANNEL,
-              "timeout_seconds": {"type": "integer", "minimum": 0, "maximum": MAX_WAIT_SECONDS}}), read_only=True),
+              "timeout_seconds": {"type": "integer", "minimum": 0, "maximum": MAX_WAIT_SECONDS},
+              "project_id": {"type": "string"}}), read_only=True),
     tool("collab_status", t_status, "Compact snapshot: agents, open tasks, locks, open decisions, recent posts.",
          obj({}), read_only=True),
     tool("collab_task_add", t_task_add, "Create a task, optionally assigned (the assignee is alerted).",
          obj({"created_by": AGENT, "title": {"type": "string", "minLength": 1}, "description": {"type": "string"},
-              "priority": {"type": "string", "enum": ["high", "medium", "low"]}, "assign": {"type": "string"}},
+              "priority": {"type": "string", "enum": ["high", "medium", "low"]}, "assign": {"type": "string"},
+              "project_id": {"type": "string"}, "session_id": {"type": "string"}},
              ["created_by", "title"])),
     tool("collab_task_list", t_task_list, "List tasks, optionally by status or owner.",
-         obj({"status": {"type": "string", "enum": TASK_STATUS}, "owner": {"type": "string"}}), read_only=True),
+         obj({"status": {"type": "string", "enum": TASK_STATUS}, "owner": {"type": "string"},
+              "project_id": {"type": "string"}}), read_only=True),
     tool("collab_task_claim", t_task_claim, "Claim a task (fails if someone else is working on it, unless force).",
-         obj({"task_id": {"type": "integer", "minimum": 1}, "agent_id": AGENT, "force": {"type": "boolean"}},
+         obj({"task_id": {"type": "integer", "minimum": 1}, "agent_id": AGENT, "force": {"type": "boolean"},
+              "session_id": {"type": "string"}},
              ["task_id", "agent_id"])),
     tool("collab_task_update", t_task_update, "Change a task's status, deliverable or owner. Creator and owner are alerted.",
          obj({"task_id": {"type": "integer", "minimum": 1}, "agent_id": AGENT,
               "status": {"type": "string", "enum": TASK_STATUS}, "deliverable": {"type": "string"},
-              "assign": {"type": "string"}}, ["task_id", "agent_id"])),
+              "assign": {"type": "string"}, "waiting_on": {"type": "string"},
+              "blocked_by": {"type": "string"}, "session_id": {"type": "string"}}, ["task_id", "agent_id"])),
     tool("collab_lock", t_lock, "Take an advisory lock on a file before editing it (relative path).",
          obj({"filepath": {"type": "string", "minLength": 1}, "agent_id": AGENT, "reason": {"type": "string"},
               "ttl_seconds": {"type": "integer", "minimum": 60, "maximum": 86400}}, ["filepath", "agent_id"])),
@@ -406,18 +675,23 @@ TOOL_LIST = [
     tool("collab_locks", t_locks, "List active file locks.", obj({}), read_only=True),
     tool("collab_propose", t_propose, "Propose a decision for a team vote (everyone, including the human, is alerted).",
          obj({"agent_id": AGENT, "topic": {"type": "string", "minLength": 1},
-              "proposal": {"type": "string", "minLength": 1}}, ["agent_id", "topic", "proposal"])),
+              "proposal": {"type": "string", "minLength": 1}, "project_id": {"type": "string"},
+              "artifact_ref": {"type": "string"}, "artifact_revision": {"type": "string"},
+              "session_id": {"type": "string"}}, ["agent_id", "topic", "proposal"])),
     tool("collab_vote", t_vote, "Vote on a decision; optionally set its status.",
          obj({"decision_id": {"type": "integer", "minimum": 1}, "agent_id": AGENT,
               "vote": {"type": "string", "enum": ["approve", "reject", "abstain"]}, "comment": {"type": "string"},
-              "status": {"type": "string", "enum": ["open", "approved", "rejected"]}},
+              "status": {"type": "string", "enum": ["open", "approved", "rejected"]},
+              "session_id": {"type": "string"}},
              ["decision_id", "agent_id", "vote"])),
     tool("collab_decisions", t_decisions, "List decisions and their votes.",
-         obj({"status": {"type": "string", "enum": ["open", "approved", "rejected"]}}), read_only=True),
+         obj({"status": {"type": "string", "enum": ["open", "approved", "rejected"]},
+              "project_id": {"type": "string"}}), read_only=True),
     tool("collab_kv_get", t_kv_get, "Read shared memory (one key, or everything).",
-         obj({"key": {"type": "string"}}), read_only=True),
+         obj({"key": {"type": "string"}, "project_id": {"type": "string"}}), read_only=True),
     tool("collab_kv_set", t_kv_set, "Write a shared-memory key (overwrites).",
-         obj({"key": {"type": "string", "minLength": 1}, "value": {"type": "string"}, "agent_id": AGENT},
+         obj({"key": {"type": "string", "minLength": 1}, "value": {"type": "string"}, "agent_id": AGENT,
+              "project_id": {"type": "string"}},
              ["key", "value", "agent_id"])),
     tool("collab_shared_list", t_shared_list, "List files in shared/ (deliverables and artifacts).",
          obj({}), read_only=True),
@@ -447,6 +721,72 @@ TOOL_LIST = [
          obj({"requester": AGENT, "agent": {"type": "string", "enum": ["claude", "codex"]},
               "prompt": {"type": "string", "minLength": 1}, "reply_to": {"type": "integer", "minimum": 1},
               "channel": CHANNEL}, ["requester", "agent", "prompt"]), open_world=True),
+    tool("collab_project_list", t_project_list, "List projects with their status, policy, and members.",
+         obj({"include_archived": {"type": "boolean"}}), read_only=True),
+    tool("collab_project_create", t_project_create, "Create or replace a project record: status, policy "
+         "(forbidden paths and style rules), repo location, and channels shared with the default board.",
+         obj({"project_id": {"type": "string", "minLength": 1}, "name": {"type": "string", "minLength": 1},
+              "created_by": AGENT, "description": {"type": "string"}, "repo_path": {"type": "string"},
+              "remote_url": {"type": "string"}, "status": {"type": "string", "enum": PROJECT_STATUS},
+              "hold_reason": {"type": "string"}, "policy": {"type": "object"},
+              "shared_channels": {"type": "array", "items": {"type": "string"}}},
+             ["project_id", "name", "created_by"])),
+    tool("collab_project_update", t_project_update, "Change a project's status, hold reason, repo path, policy, or "
+         "shared channels. Omitted fields keep their current value.",
+         obj({"project_id": {"type": "string", "minLength": 1}, "actor": AGENT,
+              "status": {"type": "string", "enum": PROJECT_STATUS}, "hold_reason": {"type": "string"},
+              "repo_path": {"type": "string"}, "policy": {"type": "object"},
+              "shared_channels": {"type": "array", "items": {"type": "string"}}},
+             ["project_id", "actor"])),
+    tool("collab_project_assign", t_project_assign, "Assign an agent to a project with a role and responsibilities.",
+         obj({"project_id": {"type": "string", "minLength": 1}, "agent_id": AGENT, "role": {"type": "string"},
+              "responsibilities": {"type": "string"}}, ["project_id", "agent_id"])),
+    tool("collab_review_list", t_review_list, "List review rounds for an artifact, project, or task, oldest round first.",
+         obj({"artifact_ref": {"type": "string"}, "project_id": {"type": "string"},
+              "task_id": {"type": "integer", "minimum": 1}}), read_only=True),
+    tool("collab_review_submit", t_review_submit, "Record a review round for an artifact revision. Every submission "
+         "keeps its own round number, so a later round never overwrites an earlier finding.",
+         obj({"artifact_ref": {"type": "string", "minLength": 1}, "reviewer_agent": AGENT,
+              "evidence": {"type": "string", "minLength": 1}, "project_id": {"type": "string"},
+              "task_id": {"type": "integer", "minimum": 1}, "artifact_revision": {"type": "string"},
+              "author_agent": {"type": "string"}, "author_model": {"type": "string"},
+              "session_id": {"type": "string"}, "model": {"type": "string"},
+              "model_provenance": {"type": "string", "enum": ["runtime_observed", "agent_declared", "unknown"]},
+              "verdict": {"type": "string", "enum": REVIEW_VERDICTS},
+              "preserved_disagreements": {"type": "string"}},
+             ["artifact_ref", "reviewer_agent", "evidence"])),
+    tool("collab_review_respond", t_review_respond, "Answer a review round as its author: response, resolution, "
+         "preserved disagreements, and status.",
+         obj({"review_id": {"type": "integer", "minimum": 1}, "actor": AGENT,
+              "author_response": {"type": "string"}, "resolution": {"type": "string"},
+              "preserved_disagreements": {"type": "string"}, "status": {"type": "string"}},
+             ["review_id", "actor"])),
+    tool("collab_events", t_events, "Read the durable board event stream after a sequence number. Keep next_seq as "
+         "your cursor; has_more means read again.",
+         obj({"since_seq": {"type": "integer", "minimum": 0}, "project_id": {"type": "string"},
+              "limit": {"type": "integer", "minimum": 1, "maximum": 500}}), read_only=True),
+    tool("collab_events_wait", t_events_wait,
+         f"Block up to {MAX_WAIT_SECONDS}s for new board events (long poll on the event stream).",
+         obj({"since_seq": {"type": "integer", "minimum": 0},
+              "timeout_seconds": {"type": "integer", "minimum": 0, "maximum": MAX_WAIT_SECONDS},
+              "project_id": {"type": "string"}}), read_only=True),
+    tool("collab_orchestrator_lock", t_orchestrator_lock, "Acquire, release, or inspect the per-project orchestrator "
+         "lock, so one agent dispatches a project's work at a time. Force overrides another holder; use it only when "
+         "the human directs the override.",
+         obj({"project_id": {"type": "string"}, "agent_id": AGENT, "session_id": {"type": "string"},
+              "action": {"type": "string", "enum": ["acquire", "release", "status"]},
+              "ttl_seconds": {"type": "integer", "minimum": 60}, "force": {"type": "boolean"}})),
+    tool("collab_owner_approve", t_owner_approve, "Owner-only approval, rejection, or return of a decision or task, "
+         "bound to the artifact revision and a single-use nonce. Requires the workspace owner token; a peer vote or a "
+         "board message never supplies that authority.",
+         obj({"entity_type": {"type": "string", "enum": ["decision", "task"]},
+              "entity_id": {"type": "integer", "minimum": 1},
+              "action": {"type": "string", "enum": ["approve", "reject", "return"]},
+              "owner_token": {"type": "string", "minLength": 32}, "actor": {"type": "string"},
+              "project_id": {"type": "string"}, "scope": {"type": "string"}, "artifact_ref": {"type": "string"},
+              "artifact_revision": {"type": "string"}, "comment": {"type": "string"},
+              "nonce": {"type": "string"}},
+             ["entity_type", "entity_id", "action", "owner_token"]), destructive=True),
 ]
 TOOLS = {t["name"]: t for t in TOOL_LIST}
 PUBLIC_TOOLS = [{k: v for k, v in t.items() if k != "fn"} for t in TOOL_LIST]

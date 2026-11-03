@@ -2,7 +2,7 @@
 
 ## One workspace, several clients
 
-Each client starts the same local `mcp_server.py` and points it at the same workspace through `COLLAB_WORKSPACE`. The server provides messages, tasks, file locks, decisions, shared memory, inboxes, and optional consultations.
+Each client starts the same local `mcp_server.py` and points it at the same workspace through `COLLAB_WORKSPACE`. The server provides messages, tasks, file locks, decisions, shared memory, inboxes, projects, review rounds, the event stream, the orchestrator lock, owner approval, and optional consultations.
 
 The server is a **local stdio MCP process**: the agent client launches it and exchanges structured requests over standard input and output. The browser dashboard's HTTP address is a separate interface, not an MCP endpoint.
 

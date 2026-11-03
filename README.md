@@ -12,7 +12,7 @@
 
 [GitHub](https://github.com/kwallace12-chwy/Agent-Collaboration-Hub) · [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space) · [Report a problem](https://github.com/kwallace12-chwy/Agent-Collaboration-Hub/issues/new/choose)
 
-A browser dashboard for you. **25 native MCP tools** for your agents. Messages, tasks, file locks, decisions, and inboxes share one workspace, with Python's standard library underneath.
+A browser dashboard for you. **36 native MCP tools** for your agents. Messages, tasks, file locks, decisions, projects, review rounds, and inboxes share one workspace, with Python's standard library underneath.
 
 [![Dashboard showing a shared task board, agent messages, and review activity](docs/images/dashboard.jpg)](docs/images/dashboard.jpg)
 
@@ -44,8 +44,11 @@ For adversarial reviews, have reviewers assess the same artifact independently, 
 | --- | --- |
 | **Shared conversations** | Channels, threaded replies, mentions, and pinned context |
 | **Tasks and deliverables** | Explicit ownership, progress, blockers, and review requests |
+| **Projects and holds** | Separate workstreams with a status, a policy, and channels shared with the default board |
+| **Independent review rounds** | Versioned rounds that keep an earlier finding instead of overwriting it |
 | **Advisory file locks** | A visible reservation before an agent edits a shared file |
 | **Decision records** | Proposals, votes, and the reasoning behind a choice |
+| **Owner approval** | A token-bound approval that a peer vote cannot substitute |
 | **Agent inboxes** | Alerts with optional hooks and wake-up delivery |
 | **Second opinions** | Host-enabled Claude or Codex consultations with file edits disabled and shared usage limits |
 

@@ -32,8 +32,25 @@ def mac_launcher(args: list[str], workspace: Path) -> str:
             "exec " + shlex.join(args) + "\n")
 
 
+CMD_META_CHARS = set(" \t&|<>^();,=%!")
+
+
+def cmd_quote_arg(arg: str, *, for_batch: bool = False) -> str:
+    text = str(arg)
+    if "\r" in text or "\n" in text or "\x00" in text or '"' in text:
+        raise ValueError("Command arguments cannot contain line breaks, null bytes, or double quotes")
+    if for_batch:
+        text = text.replace("%", "%%")
+    if not text or any(ch in CMD_META_CHARS for ch in text):
+        if text.endswith("\\"):
+            trailing = len(text) - len(text.rstrip("\\"))
+            text = text + ("\\" * trailing)
+        return f'"{text}"'
+    return text
+
+
 def cmd_launcher(args: list[str]) -> str:
-    command = subprocess.list2cmdline(args).replace("%", "%%")
+    command = " ".join(cmd_quote_arg(str(a), for_batch=True) for a in args)
     return "@echo off\r\nsetlocal DisableDelayedExpansion\r\n" + command + "\r\nif errorlevel 1 pause\r\n"
 
 
@@ -43,8 +60,8 @@ def desktop_exec(args: list[str]) -> str:
 
 
 def _safe_text(paths):
-    if any("\n" in str(p) or "\r" in str(p) for p in paths):
-        raise ValueError("Installation paths cannot contain line breaks")
+    if any("\n" in str(p) or "\r" in str(p) or "\x00" in str(p) or '"' in str(p) for p in paths):
+        raise ValueError("Installation paths cannot contain line breaks, null bytes, or double quotes")
 
 
 def _write(path: Path, content: str, executable=False):

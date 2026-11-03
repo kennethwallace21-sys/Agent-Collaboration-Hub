@@ -9,6 +9,9 @@
 /.mcp.json
 /.workspace/
 
+# Personal editor and client settings.
+/.vscode/
+
 # Credentials, local overrides, generated diagnostics and build products.
 .env
 .env.*
@@ -32,3 +35,5 @@ build/
 *.egg-info/
 .coverage
 htmlcov/
+testrun*
+*.tmp

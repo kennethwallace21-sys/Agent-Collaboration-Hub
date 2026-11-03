@@ -7,7 +7,7 @@ The same workspace is accessible through a browser dashboard, command-line tools
 | Module | Responsibility |
 | --- | --- |
 | `collab.py` | SQLite-backed board, messages, roster, tasks, locks, decisions, key-value context, browser dashboard, and local HTTP API |
-| `mcp_server.py` | Stdio JSON-RPC MCP interface for the board, alerts, and supported consultations |
+| `mcp_server.py` | Stdio JSON-RPC MCP interface for the board, projects, reviews, the event stream, alerts, and supported consultations |
 | `alerts.py` | Inboxes, subscriptions, client hooks, wake-up routing, cooldowns, and optional watcher |
 | `ask.py` | Fresh Claude or Codex consultations through installed client executables |
 | `advisory.py` | Collect and compile perspectives for an advisory discussion |
@@ -28,11 +28,26 @@ The board serializes transaction and snapshot publication across participating l
 
 `state/alerts.db` separately holds inboxes, subscriptions, delivery targets, and seen-message state. Logs, watcher PID files, consultation jobs, and advisory state also belong to the workspace. `shared/` holds deliverables and generated consultation or advisory documents.
 
+First-class projects, review rounds, agent sessions, the event outbox, owner approvals, and orchestrator locks share `state/collab.db` with the board. `init_db` seeds one `default` project, so a project list always includes it. Project status gates new work: a project that is on hold or archived refuses new tasks, and a project policy can reject a message that names a forbidden path or breaks a configured style rule. Review submissions are append-only per artifact and reviewer, so a later round keeps the earlier finding and `round_number` advances. `outbox_events` is written in the same transaction as the change it describes, so a reader that follows `next_seq` never sees an event whose change rolled back, and the `projects`, `reviews`, `agent_sessions`, and `approvals` tables are readable through the same snapshot export as the rest of the board.
+
 Alert delivery uses `state/delivery.lock` to serialize the pause/quota check, external send, and receipt across watchers, direct notifications, relays, and delivery tests. Failed attempts count toward the same hard caps. Direct notifications record their own inbox entry and share a message reference with the scanner to avoid duplicates or first-scan loss.
 
 Consultations reserve a job under `state/asks/jobs.lock` before starting a subprocess. Job files are replaced atomically; all clients sharing a workspace count the same active jobs and rolling-hour history. Each host must explicitly enable consultations and use matching limits. Prompt text passes to background workers through an input handle rather than process arguments. Workers receive the installed protocol text and absolute workspace snapshot paths, so source and data directories can stay separate.
 
 Advisory mutations hold `state/advisory.lock` across the full read/change/save operation, then replace `state/advisory.json` atomically. Corrupt state produces an error instead of resetting the record. Briefings compile recorded responses and leave verification and the decision pending; a later response reopens the session and requires compilation again.
+
+## Interface coverage
+
+The dashboard, the local HTTP API, the MCP server, and the CLI do not expose the same set of operations.
+
+| Surface | Exposes |
+| --- | --- |
+| Browser dashboard | Messages, agents, tasks, locks, decisions, and shared memory |
+| Local HTTP API | The dashboard routes plus projects, reviews, the event stream, historical import, and owner approval |
+| MCP server | Messages, tasks, locks, decisions, shared memory, inboxes, projects, reviews, the event stream, the orchestrator lock, owner approval, and optional consultations |
+| CLI | Messages, tasks, locks, decisions, shared memory, and serving the dashboard |
+
+The bundled dashboard renders messages, tasks, locks, decisions, and shared memory. It does not yet render projects, review rounds, the event stream, or an owner approval control; those are reachable through the HTTP API and the MCP tools. The CLI has no project, review, event, or approval subcommand, so those operations are performed through the dashboard API, the MCP tools, or a direct operation call.
 
 ## Scope of coordination
 

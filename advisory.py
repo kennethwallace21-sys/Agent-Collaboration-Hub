@@ -134,23 +134,68 @@ def cmd_request(topic: str, context: str, requested_by: str) -> None:
     print(f"Posted notification to channel #advisory.")
 
 
-def cmd_respond(session_id: int, agent_id: str, advice: str) -> None:
+def cmd_respond(
+    session_id: int,
+    agent_id: str,
+    advice: str,
+    *,
+    artifact_revision: str = "v1",
+    reviewer_session: str = "",
+    model: str = "unknown",
+    evidence: str = "",
+    author_response: str = "",
+    resolution: str = "pending",
+    preserved_disagreements: str = "",
+) -> None:
     with edit_store() as store:
         session = next((s for s in store["sessions"] if s["id"] == session_id), None)
         if not session:
             raise ValueError(f"Session #{session_id} not found")
-        session.setdefault("responses", {})[agent_id] = {
+        responses = session.setdefault("responses", {})
+        prior = responses.get(agent_id)
+        history = list(prior.get("history", [])) if isinstance(prior, dict) else []
+        if isinstance(prior, dict) and "advice" in prior and not history:
+            history.append({
+                "round": 1,
+                "agent": prior.get("agent", agent_id),
+                "advice": prior["advice"],
+                "submitted_at": prior.get("submitted_at", ""),
+                "artifact_revision": prior.get("artifact_revision", "v1"),
+                "reviewer_session": prior.get("reviewer_session", ""),
+                "model": prior.get("model", "unknown"),
+                "evidence": prior.get("evidence", ""),
+                "author_response": prior.get("author_response", ""),
+                "resolution": prior.get("resolution", "pending"),
+                "preserved_disagreements": prior.get("preserved_disagreements", ""),
+            })
+        round_num = len(history) + 1
+        ts = now_iso()
+        entry = {
+            "round": round_num,
             "agent": agent_id,
             "advice": advice,
-            "submitted_at": now_iso(),
+            "submitted_at": ts,
+            "artifact_revision": artifact_revision,
+            "reviewer_session": reviewer_session,
+            "model": model,
+            "evidence": evidence,
+            "author_response": author_response,
+            "resolution": resolution,
+            "preserved_disagreements": preserved_disagreements,
         }
+        history.append(entry)
+        responses[agent_id] = {
+            **entry,
+            "history": history,
+        }
+        session.setdefault("response_history", []).append(entry)
         # A late response makes a previously compiled briefing stale.
         session["status"] = "open"
         session.pop("briefing_file", None)
 
-    msg = f"🏛️ **[ADVISORY RESPONSE #{session_id}] from `{agent_id}`**:\n\n{advice}"
+    msg = f"🏛️ **[ADVISORY RESPONSE #{session_id} (Round {round_num})] from `{agent_id}`**:\n\n{advice}"
     post_collab_message(sender=agent_id, channel="advisory", msg=msg)
-    print(f"[OK] Recorded response from '{agent_id}' for Session #{session_id}.")
+    print(f"[OK] Recorded response (Round {round_num}) from '{agent_id}' for Session #{session_id}.")
 
 
 def render_briefing(session: dict) -> str:
@@ -173,9 +218,17 @@ def render_briefing(session: dict) -> str:
         md_lines.append("_No responses were submitted for this session._")
     else:
         for agent, data in responses.items():
-            md_lines.append(f"### Perspective: `{agent}` _({data['submitted_at']})_")
-            md_lines.append(data["advice"])
-            md_lines.append("")
+            hist = data.get("history", [])
+            if len(hist) > 1:
+                for item in hist:
+                    rev_tag = f" [rev: {item.get('artifact_revision', 'v1')}]" if item.get("artifact_revision") else ""
+                    md_lines.append(f"### Perspective: `{agent}` - Round {item.get('round', 1)}{rev_tag} _({item['submitted_at']})_")
+                    md_lines.append(item["advice"])
+                    md_lines.append("")
+            else:
+                md_lines.append(f"### Perspective: `{agent}` _({data['submitted_at']})_")
+                md_lines.append(data["advice"])
+                md_lines.append("")
 
     md_lines.extend(
         [

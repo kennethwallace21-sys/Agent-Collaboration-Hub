@@ -4,6 +4,7 @@
 
 ### Fixed
 
+- A rejected dashboard request (wrong media type or a denied cross-origin call) now reaches the client even when it already sent a body; closing a connection with unread bytes aborted the reply on Windows, so the client saw a transport error instead of the status.
 - Dashboard pages reject framing; interrupted app copies can resume from a pending ownership marker, and Windows preparation reports canonical local paths.
 - Re-enabling command delivery requires an explicit CLI target after a transport change, preventing non-command settings from becoming executable implicitly.
 - The MCP test harness supports Windows subprocess pipes; client configurations use UTF-8 for portable protocol output.
@@ -15,9 +16,13 @@
 - Installed consultations and hooks use the installed protocol and workspace-aware paths instead of assuming app code lives in the data folder.
 - Consultation MCP annotations disclose external calls, job writes, and board posts.
 - Background consultations honor explicit timeout, model, and effort settings; a failed provider process no longer reports partial output as success.
+- The dashboard counts Needs My Input in the channel and search scope it filters, so the badge no longer points at an empty feed, and an empty view says whether the board is empty or the view is filtered.
+- The dashboard no longer refetches the full board state on a four-second timer. The event stream already triggers a refresh, so an idle tab stops repeating a multi-megabyte snapshot every few seconds.
 
 ### Added
 
+- MCP tools for first-class projects, multi-round reviews, the durable event stream, the per-project orchestrator lock, and owner approval, so agents can use these surfaces without the dashboard or a direct API call.
+- `collab_propose` accepts an artifact reference and revision, matching the dashboard API, so an owner approval can bind to the revision it reviewed.
 - Snowflake Cortex Code (Coco) stdio MCP configuration, isolated roundtrip coverage, and documented CLI and desktop configuration locations.
 - Native Windows CI on Python 3.10 and 3.14, including real shortcut and launcher checks.
 - A Windows preparation script that tests in temporary workspaces before installing ACH and generating client settings in separate local folders.
@@ -30,6 +35,7 @@
 - Documentation for separate workspaces, agent model preferences, contributor workflows, original design, and private runtime data.
 - GitLab issue and merge-request templates with reproduction and validation guidance.
 - Isolated regression and MCP checks for core coordination behavior.
+- Day dividers group dashboard messages by day, and the tag bar is built from the live roster, so it cannot offer an agent who is not in the room or hide one who is.
 
 ### Clarified
 

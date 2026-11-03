@@ -152,6 +152,14 @@ CREATE TABLE IF NOT EXISTS alerts (
     created_epoch REAL NOT NULL,
     seen_at TEXT,
     pushed_at TEXT,
+    delivery_state TEXT NOT NULL DEFAULT 'queued',
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    max_retries INTEGER NOT NULL DEFAULT 3,
+    last_error TEXT NOT NULL DEFAULT '',
+    accepted_at TEXT,
+    completed_at TEXT,
+    failed_at TEXT,
+    session_id TEXT NOT NULL DEFAULT '',
     UNIQUE(agent, ref)
 );
 CREATE INDEX IF NOT EXISTS alerts_by_agent ON alerts(agent, seen_at);
@@ -201,6 +209,19 @@ def open_db() -> sqlite3.Connection:
     conn = _connect(ALERTS_DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
+    existing_cols = {r["name"] for r in conn.execute("PRAGMA table_info(alerts)").fetchall()}
+    for col, cdef in (
+        ("delivery_state", "TEXT NOT NULL DEFAULT 'queued'"),
+        ("retry_count", "INTEGER NOT NULL DEFAULT 0"),
+        ("max_retries", "INTEGER NOT NULL DEFAULT 3"),
+        ("last_error", "TEXT NOT NULL DEFAULT ''"),
+        ("accepted_at", "TEXT"),
+        ("completed_at", "TEXT"),
+        ("failed_at", "TEXT"),
+        ("session_id", "TEXT NOT NULL DEFAULT ''"),
+    ):
+        if col not in existing_cols:
+            conn.execute(f"ALTER TABLE alerts ADD COLUMN {col} {cdef}")
     for agent, spec in DEFAULT_TARGETS.items():
         conn.execute(
             "INSERT OR IGNORE INTO targets (agent, via, aliases, wake_on, updated_at) VALUES (?, ?, ?, ?, ?)",
@@ -410,6 +431,9 @@ def scan_messages(conn, hub, targets) -> int:
     created, last = 0, int(cursor) if cursor is not None and int(cursor) <= newest else 0
     for m in hub.execute("SELECT * FROM messages WHERE id > ? ORDER BY id LIMIT 500", (last,)).fetchall():
         last = m["id"]
+        m_keys = m.keys()
+        if ("is_imported" in m_keys and m["is_imported"]) or ("suppress_dispatch" in m_keys and m["suppress_dispatch"]):
+            continue
         content = m["content"] or ""
         if m["channel"] in ("tasks", "architecture") and SYSTEM_EVENT_RE.match(content):
             continue
@@ -460,6 +484,8 @@ def scan_tasks(conn, hub, targets) -> int:
     created = 0
     for t in hub.execute("SELECT * FROM tasks ORDER BY id").fetchall():
         owner_raw = t["owner"] or ""
+        t_keys = t.keys()
+        is_suppressed = bool(("is_imported" in t_keys and t["is_imported"]) or ("suppress_dispatch" in t_keys and t["suppress_dispatch"]))
         prev = seen.get(t["id"])
         if prev and (prev["status"], prev["owner"], prev["updated_at"]) == (t["status"], owner_raw, t["updated_at"]):
             continue
@@ -467,7 +493,7 @@ def scan_tasks(conn, hub, targets) -> int:
             "INSERT OR REPLACE INTO task_seen (task_id, status, owner, updated_at) VALUES (?, ?, ?, ?)",
             (t["id"], t["status"], owner_raw, t["updated_at"]),
         )
-        if not ready:
+        if not ready or is_suppressed:
             continue
         label = f'Task #{t["id"]} "{flatten(t["title"], 80)}"'
         owner = resolve(names, owner_raw)
@@ -577,17 +603,36 @@ def scan(conn: sqlite3.Connection | None = None) -> int:
 # Inbox
 # ---------------------------------------------------------------------------
 
+VALID_DELIVERY_STATES = (
+    "queued",
+    "transport_delivered",
+    "acknowledged",
+    "accepted",
+    "in_progress",
+    "completed",
+    "failed",
+    "canceled",
+)
+
+
 def alert_dict(row) -> dict:
+    r_keys = row.keys()
     return {
         "id": row["id"], "kind": row["kind"], "priority": row["priority"], "title": row["title"],
         "body": flatten(row["body"], 1500), "message_id": row["message_id"], "channel": row["channel"],
         "sender": row["sender"], "created_at": row["created_at"], "seen": row["seen_at"] is not None,
         "wake": bool(row["wake"]),
+        "delivery_state": row["delivery_state"] if "delivery_state" in r_keys else ("acknowledged" if row["seen_at"] else "queued"),
+        "retry_count": row["retry_count"] if "retry_count" in r_keys else 0,
+        "max_retries": row["max_retries"] if "max_retries" in r_keys else 3,
+        "last_error": row["last_error"] if "last_error" in r_keys else "",
     }
 
 
 def unseen(conn, agent: str, wake_only: bool = False, limit: int = 50) -> list:
-    sql = "SELECT * FROM alerts WHERE agent = ? AND seen_at IS NULL" + (" AND wake = 1" if wake_only else "")
+    sql = "SELECT * FROM alerts WHERE agent = ? AND seen_at IS NULL AND delivery_state NOT IN ('failed', 'canceled')" + (
+        " AND wake = 1" if wake_only else ""
+    )
     return conn.execute(sql + " ORDER BY id LIMIT ?", (agent, limit)).fetchall()
 
 
@@ -595,11 +640,89 @@ def count_unseen(conn, agent: str) -> int:
     return conn.execute("SELECT COUNT(*) AS n FROM alerts WHERE agent = ? AND seen_at IS NULL", (agent,)).fetchone()["n"]
 
 
-def mark_seen(conn, ids) -> None:
+def mark_seen(conn, ids, state: str = "acknowledged") -> None:
     ids = list(ids)
     if ids:
-        conn.execute(f"UPDATE alerts SET seen_at = ? WHERE seen_at IS NULL AND id IN ({','.join('?' * len(ids))})",
-                     (now_iso(), *ids))
+        conn.execute(
+            f"UPDATE alerts SET seen_at = COALESCE(seen_at, ?), delivery_state = ? WHERE id IN ({','.join('?' * len(ids))})",
+            (now_iso(), state, *ids),
+        )
+
+
+def transition_alert(
+    alert_id: int,
+    agent: str,
+    state: str,
+    *,
+    detail: str = "",
+    session_id: str = "",
+    conn: sqlite3.Connection | None = None,
+) -> dict:
+    """Explicitly advance an alert across delivery and execution states."""
+    if state not in VALID_DELIVERY_STATES:
+        raise ValueError(f"Invalid delivery state: {state}")
+    own = conn is None
+    conn = conn or open_db()
+    try:
+        agent = canonical(conn, agent)
+        row = conn.execute("SELECT * FROM alerts WHERE id = ? AND agent = ?", (int(alert_id), agent)).fetchone()
+        if row is None:
+            return {"ok": False, "error": f"Alert #{alert_id} for {agent} not found"}
+        ts = now_iso()
+        seen_at = row["seen_at"] or (ts if state in ("acknowledged", "accepted", "in_progress", "completed") else None)
+        pushed_at = row["pushed_at"] or (ts if state == "transport_delivered" else None)
+        accepted_at = row["accepted_at"] or (ts if state in ("accepted", "in_progress", "completed") else None)
+        completed_at = row["completed_at"] or (ts if state == "completed" else None)
+        failed_at = row["failed_at"] or (ts if state == "failed" else None)
+        conn.execute(
+            """
+            UPDATE alerts
+            SET delivery_state = ?, seen_at = ?, pushed_at = ?, accepted_at = ?,
+                completed_at = ?, failed_at = ?, last_error = CASE WHEN ? != '' THEN ? ELSE last_error END,
+                session_id = CASE WHEN ? != '' THEN ? ELSE session_id END
+            WHERE id = ?
+            """,
+            (state, seen_at, pushed_at, accepted_at, completed_at, failed_at, detail, detail, session_id, session_id, int(alert_id)),
+        )
+        updated = conn.execute("SELECT * FROM alerts WHERE id = ?", (int(alert_id),)).fetchone()
+        return {"ok": True, "alert": alert_dict(updated)}
+    finally:
+        if own:
+            conn.close()
+
+
+def record_delivery_attempt(alert_id: int, ok: bool, detail: str = "", conn: sqlite3.Connection | None = None) -> dict:
+    """Record transport delivery receipt or bounded retry increment."""
+    own = conn is None
+    conn = conn or open_db()
+    try:
+        row = conn.execute("SELECT * FROM alerts WHERE id = ?", (int(alert_id),)).fetchone()
+        if row is None:
+            return {"ok": False, "error": f"Alert #{alert_id} not found"}
+        ts = now_iso()
+        if ok:
+            conn.execute(
+                "UPDATE alerts SET pushed_at = COALESCE(pushed_at, ?), delivery_state = 'transport_delivered', last_error = '' WHERE id = ?",
+                (ts, int(alert_id)),
+            )
+            return {"ok": True, "delivery_state": "transport_delivered", "retry_count": row["retry_count"]}
+        retries = int(row["retry_count"] or 0) + 1
+        max_r = int(row["max_retries"] or 3)
+        exhausted = retries >= max_r
+        new_state = "failed" if exhausted else "queued"
+        conn.execute(
+            """
+            UPDATE alerts
+            SET retry_count = ?, delivery_state = ?, last_error = ?,
+                failed_at = CASE WHEN ? THEN ? ELSE failed_at END
+            WHERE id = ?
+            """,
+            (retries, new_state, detail or "delivery attempt failed", 1 if exhausted else 0, ts, int(alert_id)),
+        )
+        return {"ok": False, "delivery_state": new_state, "retry_count": retries, "exhausted": exhausted}
+    finally:
+        if own:
+            conn.close()
 
 
 def inbox(agent: str, include_read: bool = False, limit: int = 20, mark_read: bool = True) -> dict:
@@ -915,7 +1038,7 @@ def daemon_pid() -> int | None:
             fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             try:
-                return int(PID_PATH.read_text().strip())
+                return int(PID_PATH.read_text(encoding="utf-8").strip())
             except (OSError, ValueError):
                 return -1
         fcntl.flock(fh, fcntl.LOCK_UN)
@@ -944,7 +1067,7 @@ def run_watch(interval: float) -> int:
     except OSError:
         print(f"alerts watcher already running (pid {daemon_pid()})")
         return 0
-    PID_PATH.write_text(str(os.getpid()))
+    PID_PATH.write_text(str(os.getpid()), encoding="utf-8")
     stopping = []
     signal.signal(signal.SIGTERM, lambda *_: stopping.append(1))
     signal.signal(signal.SIGINT, lambda *_: stopping.append(1))
@@ -974,16 +1097,40 @@ def run_watch(interval: float) -> int:
 
 def remember_session(conn, client: str, agent: str, payload: dict) -> None:
     current = load_targets(conn).get(agent, {"via": "none"})
+    obs_session = ""
+    obs_model = ""
     if client == "antigravity" and payload.get("conversationId"):
+        obs_session = str(payload["conversationId"])
+        obs_model = str(payload.get("modelName") or "")
         if current["via"] in ("antigravity", "none"):
-            register(agent, via="antigravity", target=str(payload["conversationId"]),
-                     model=str(payload.get("modelName") or "") or None, conn=conn)
+            register(agent, via="antigravity", target=obs_session,
+                     model=obs_model or None, conn=conn)
     elif client == "codex" and payload.get("session_id"):
+        obs_session = str(payload["session_id"])
+        obs_model = str(payload.get("model") or "")
         if current["via"] in ("codex", "none"):
-            register(agent, via="codex", target=str(payload["session_id"]),
-                     model=str(payload.get("model") or "") or None, conn=conn)
+            register(agent, via="codex", target=obs_session,
+                     model=obs_model or None, conn=conn)
     elif client == "claude" and payload.get("session_id"):
-        meta_set(conn, f"session:{agent}", payload["session_id"])
+        obs_session = str(payload["session_id"])
+        obs_model = str(payload.get("model") or "")
+        meta_set(conn, f"session:{agent}", obs_session)
+    if obs_session and HUB_DB_PATH.exists():
+        try:
+            import collab as _hub_mod
+            with _hub_mod.get_db() as hconn:
+                _hub_mod.touch_agent(
+                    hconn,
+                    agent,
+                    model=obs_model,
+                    surface=client,
+                    runtime=client,
+                    model_provenance="runtime_observed" if obs_model else "unknown",
+                    session_id=obs_session,
+                    preserve_primary_model=True,
+                )
+        except Exception:
+            pass
 
 
 def stop_guard(conn, agent: str, payload: dict) -> bool:
@@ -1017,6 +1164,8 @@ def run_hook(client: str, agent: str, event: str) -> int:
     if os.environ.get("COLLAB_HEADLESS") == "1":
         return 0  # headless consults (./ask) must not consume the live agent's alerts
     out = None
+    row_ids: list[int] = []
+    resolved_agent = agent
     try:
         raw = sys.stdin.read() if not sys.stdin.isatty() else ""
         try:
@@ -1027,27 +1176,41 @@ def run_hook(client: str, agent: str, event: str) -> int:
         event = event or str(payload.get("hook_event_name") or payload.get("hookEventName") or "")
         conn = open_db()
         try:
-            agent = canonical(conn, agent)
-            remember_session(conn, client, agent, payload)
-            touch(conn, agent, "active")
+            resolved_agent = canonical(conn, agent)
+            remember_session(conn, client, resolved_agent, payload)
+            touch(conn, resolved_agent, "active")
             scan(conn)
             if meta_get(conn, "paused") == "1":
                 return 0  # Leave inboxes unread while automatic delivery is paused.
-            rows = unseen(conn, agent, wake_only=(event == "Stop"), limit=12)
-            if event == "Stop" and rows and stop_guard(conn, agent, payload):
+            rows = unseen(conn, resolved_agent, wake_only=(event == "Stop"), limit=12)
+            if event == "Stop" and rows and stop_guard(conn, resolved_agent, payload):
                 rows = []
-            out = hook_output(client, event, agent, rows, conn)
-            if rows:
-                mark_seen(conn, [r["id"] for r in rows])
-                if event == "Stop":
-                    touch(conn, agent, "stopcontinue")
+            out = hook_output(client, event, resolved_agent, rows, conn)
+            row_ids = [r["id"] for r in rows]
         finally:
             conn.close()
     except Exception:
         log(f"hook {client}/{event} error: " + traceback.format_exc().strip().replace("\n", " | "))
         out = None
+        row_ids = []
     if out is not None:
-        print(json.dumps(out))
+        try:
+            print(json.dumps(out))
+            sys.stdout.flush()
+        except Exception:
+            log(f"hook {client}/{event} stdout flush failed; leaving {len(row_ids)} alerts unread")
+            return 0
+    if row_ids:
+        try:
+            conn = open_db()
+            try:
+                mark_seen(conn, row_ids, state="transport_delivered")
+                if event == "Stop":
+                    touch(conn, resolved_agent, "stopcontinue")
+            finally:
+                conn.close()
+        except Exception:
+            pass
     return 0
 
 
