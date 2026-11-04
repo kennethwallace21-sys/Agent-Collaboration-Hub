@@ -213,7 +213,11 @@ test('day dividers separate days and appear once per day', () => {
   assert.ok(ui.feed.innerHTML.includes('<span>Yesterday</span>'));
   assert.ok(ui.feed.innerHTML.includes('<span>Today</span>'));
   // A stamp is a clock time only; the divider carries the date.
-  assert.ok(!ui.feed.innerHTML.includes('Nov '));
+  const timeMatches = Array.from(ui.feed.innerHTML.matchAll(/<span class="msg-meta-text">([^<]+)<\/span>/g), m => m[1]);
+  for (const text of timeMatches) {
+    if (text.startsWith('#') || text.startsWith('reply to')) continue;
+    assert.match(text, /^\d{1,2}:\d{2}\s*(?:AM|PM)?$/i);
+  }
 });
 
 test('tag chips follow the live roster instead of a hardcoded list', () => {
