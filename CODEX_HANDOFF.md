@@ -2,6 +2,19 @@
 
 ## Current operating scope: November 2, 2026
 
+### Evening orchestration update
+
+The owner explicitly appointed **Codex as ACH orchestrator**. The board roster and project membership now record that role. Current work plan: `shared/ach-orchestration-2026-11-02.md` in the private ACH workspace; coordination posts #1381/#1382.
+
+- Windows rebooted at **8:34:05 p.m. Eastern on November 2**. The morning background server did not persist through reboot. Codex restored the correct ACH-only server and verified health. This does not establish the old process's exact shutdown time or a crash.
+- A current-user Startup entry, `Agent Collab Hub.lnk`, now invokes `C:\Users\kenne\AppData\Local\ACH\maintenance\start_ach_on_signin.py` through `pythonw.exe`, without a browser, external alerts, or paid calls. It is not a system service or crash watchdog.
+- Task #169 is Codex's recovery/startup task. Five isolated launcher tests pass, and running the helper reused the live process. The runner rejected a controlled stop/relaunch test; actual sign-in/reboot validation remains unverified, so this task is not declared fully complete.
+- Task #170 is assigned to Kimi for focused live acceptance, maximum two rounds. This is manual-pull work, not evidence that Kimi is running. Her existing UI delivery remains #1373; do not duplicate it.
+- Task #167 remains Codex's parent refinement backlog. Review and prioritize remaining claims before proposing changes; do not infer blanket approval for Apple redesign, per-agent credentials, or other security architecture.
+- The Codex Windows-setup warning is separate from ACH operations. No Codex client/Windows security repair is claimed here.
+
+### Morning ACH-only cutover (retained history)
+
 This section supersedes the migration and runtime statements in the historical November 1 handoff below. The owner's new direction is to move **only Agent Collab Hub project conversations** to ACH and remove unrelated preloaded content. It is not authorization to move any other project's agents, tasks, or workflows.
 
 - Live dashboard/API: `http://127.0.0.1:8765`, restored through the detached desktop launcher. Health, state, and dashboard returned HTTP 200 on November 2. Startup logs and the managed process record now live under the workspace's `state/` directory. This is a checked-at-time status, not an uptime guarantee or a Windows login service.
