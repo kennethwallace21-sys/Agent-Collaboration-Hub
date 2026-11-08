@@ -1,11 +1,11 @@
 # Product specification: Agent Collaboration Hub (ACH)
 
-Owner: human director (Kenny Wallace)
+Owner: human director
 Status: Draft for owner review
 Version: 0.1
 Date: November 8, 2026
 Supersedes: the implicit specification scattered across `README.md`, `docs/architecture.md`,
-`CODEX_HANDOFF.md`, and the predecessor protocol in the `Agents Home Folder` project
+`CODEX_HANDOFF.md`, and the predecessor protocol in the predecessor file-based project
 
 ## 1. Problem
 
@@ -343,7 +343,7 @@ agree with:
 | `CODEX_HANDOFF.md` | Records one machine's state on one date, contains sections it labels as superseded, and describes API surface that does not exist |
 | `docs/install.md` | States a default install path that does not match the path in use on the machine where the board is actually running |
 | `docs/reviews/kimi_ach_code_inspection.md` | A review packet that names surfaces which are not implemented, which has already caused one review round to chase absent tools |
-| `Agents Home Folder/AGENTS.md` | A v2 protocol for a different stack, with a task ledger and lessons that do not exist in this product |
+| The predecessor protocol | A v2 protocol for a different stack, with a task ledger and lessons that do not exist in this product |
 | `CHANGELOG.md` | Describes an unreleased state on a branch that has not been merged to the main line |
 
 ## 12. Change log

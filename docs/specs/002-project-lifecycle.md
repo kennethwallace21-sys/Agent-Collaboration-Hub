@@ -1,6 +1,6 @@
 # Project lifecycle and spec control
 
-Owner: human director (Kenny Wallace)
+Owner: human director
 Status: Draft for owner review
 Version: 0.1
 Date: November 8, 2026

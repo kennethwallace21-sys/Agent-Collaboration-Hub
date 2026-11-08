@@ -12,7 +12,7 @@ disagree in detail:
 | `README.md` | Public framing and capability table | Marketing register, no requirement IDs, no acceptance criteria |
 | `docs/architecture.md` | What the code currently does | Descriptive, not normative. It cannot say a behavior is wrong |
 | `CODEX_HANDOFF.md` | One machine's operating state on one date | Operational and machine-specific. Local only since 3.0.0 and no longer in the repository, because it carries install paths, process ids, board ids, and dated orchestration notes |
-| `Agents Home Folder/AGENTS.md` | A predecessor PowerShell protocol (v2) | Different system, different stack, still in daily use for other projects |
+| The predecessor protocol | A predecessor PowerShell protocol (v2) | Different system, different stack, still in daily use for other projects |
 
 A specification states what the product must do. When code and a specification
 disagree, that disagreement is a defect in one of them and must be resolved
@@ -20,14 +20,31 @@ deliberately, not by whichever file a reader happened to open.
 
 ## Documents
 
+Two of these are public product documentation. Three describe the owner's private
+portfolio and infrastructure and are deliberately local-only.
+
+### Public, tracked in the repository
+
 | ID | Document | Status | Scope |
 | --- | --- | --- | --- |
 | 001 | [Product specification](001-product-spec.md) | Draft for owner review | The board as a product: problem, scope, requirements, constraints, open decisions |
 | 002 | [Project lifecycle and spec control](002-project-lifecycle.md) | Draft for owner review | Phases and gates, living specifications, the change-control loop, memory, skills |
-| 003 | [Consultation, advisory, and model routing](003-consultation-and-model-routing.md) | Draft for owner review | The three review operations, model pool selection, adapter design, and GitLab review findings |
-| 004 | [Azure cutover](004-azure-cutover.md) | Draft for owner review | Whether the 2026-12-08 cutover is a live migration, with subscription evidence |
-| 005 | [Portfolio assessment](005-portfolio-assessment.md) | Draft for owner review | Inventory of every repository and folder, the recurring pattern, root cause, recommendations, measures |
 | 006 | Reconciliation with prior work | Not yet written | Inventory of every prior iteration and its disposition |
+
+### Local only, not committed
+
+These name private repositories, account identifiers, and infrastructure. They live in the
+workspace and must not reach a public repository. See
+[security and privacy](../security.md).
+
+| ID | Document | Status | Why it is local |
+| --- | --- | --- | --- |
+| 003 | Consultation, advisory, and model routing | Draft for owner review | Its reconciliation section names private repositories and their internal contents |
+| 004 | Azure cutover | Draft for owner review | Carries a subscription identifier, resource group names, and resource names |
+| 005 | Portfolio assessment | Draft for owner review | Enumerates every private repository and its state |
+
+If a private document needs a public counterpart, write the public one separately and leave
+the identifiers behind. Do not redact in place, because a later edit reintroduces them.
 
 ## Conventions
 

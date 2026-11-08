@@ -13,6 +13,12 @@
 # entries, board ids, and dated orchestration notes. Not product source, and not portable.
 /CODEX_HANDOFF.md
 
+# Specs that name private repositories, account identifiers, or infrastructure. The public
+# product specs stay tracked; the portfolio-specific ones do not. See docs/specs/README.md.
+/docs/specs/003-consultation-and-model-routing.md
+/docs/specs/004-azure-cutover.md
+/docs/specs/005-portfolio-assessment.md
+
 # Personal editor and client settings.
 /.vscode/
 

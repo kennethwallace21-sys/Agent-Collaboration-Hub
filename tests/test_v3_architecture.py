@@ -637,8 +637,8 @@ class V3ArchitectureTests(unittest.TestCase):
                     mig_mod.main(argv)
 
         text = (ROOT / "scripts" / "migrate_agents_home.py").read_text(encoding="utf-8")
-        self.assertNotIn("Users\\kenne", text)
-        self.assertNotIn("Company_Website_live", text)
+        self.assertNotRegex(text, r"[Cc]:\\Users\\", "shipped source must not name a personal folder")
+        self.assertIn(r"C:\path\to\website-repo", text, "the sample keeps an obvious placeholder")
 
 
 if __name__ == "__main__":
