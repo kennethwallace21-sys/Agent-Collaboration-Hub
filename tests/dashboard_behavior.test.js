@@ -9,7 +9,7 @@ const vm = require('node:vm');
 const html = fs.readFileSync(path.join(__dirname, '..', 'assets', 'dashboard.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 
-function dashboard() {
+function dashboard(globals = {}) {
   const elements = new Map();
   const listeners = new Map();
   const document = {
@@ -29,7 +29,7 @@ function dashboard() {
     querySelectorAll() { return []; },
     addEventListener(name, handler) { listeners.set(name, handler); },
   };
-  const context = vm.createContext({ document, window: {} });
+  const context = vm.createContext({ document, window: {}, ...globals });
   vm.runInContext(script, context);
   const feed = document.getElementById('messages-list');
   return {
@@ -212,12 +212,45 @@ test('day dividers separate days and appear once per day', () => {
   assert.equal((ui.feed.innerHTML.match(/class="day-divider"/g) || []).length, 3);
   assert.ok(ui.feed.innerHTML.includes('<span>Yesterday</span>'));
   assert.ok(ui.feed.innerHTML.includes('<span>Today</span>'));
-  // A stamp is a clock time only; the divider carries the date.
+  // A stamp is a clock time only; the divider carries the date. Scope the date check to
+  // the dividers: the feed as a whole legitimately contains the month name in one.
+  const dividers = Array.from(
+    ui.feed.innerHTML.matchAll(/<div class="day-divider"><span>([^<]+)<\/span><\/div>/g), m => m[1]);
+  assert.equal(dividers.length, 3);
+  assert.ok(!['Today', 'Yesterday'].includes(dividers[0]), 'the oldest divider names its date');
   const timeMatches = Array.from(ui.feed.innerHTML.matchAll(/<span class="msg-meta-text">([^<]+)<\/span>/g), m => m[1]);
   for (const text of timeMatches) {
     if (text.startsWith('#') || text.startsWith('reply to')) continue;
     assert.match(text, /^\d{1,2}:\d{2}\s*(?:AM|PM)?$/i);
   }
+});
+
+test('a failing state fetch backs off instead of retrying without bound', async () => {
+  const seen = { events: 0, state: 0 };
+  const delays = [];
+  // Park any request past the cap so a regression fails an assertion instead of
+  // spinning the test process forever.
+  const parked = () => new Promise(() => {});
+  const ui = dashboard({
+    fetch: async (url) => {
+      if (seen.events + seen.state >= 4) return parked();
+      if (url.startsWith('/api/events')) {
+        seen.events += 1;
+        return { ok: true, json: async () => ({ events: [{ seq: 1 }] }) };
+      }
+      seen.state += 1;
+      return { ok: false, json: async () => ({}) };
+    },
+    setTimeout: (fn, ms) => {
+      delays.push(ms);
+      return parked();
+    },
+  });
+  ui.context.pollEventsLoop();
+  for (let i = 0; i < 50; i += 1) await new Promise(r => setImmediate(r));
+  assert.equal(seen.events, 1);
+  assert.equal(seen.state, 1);
+  assert.deepEqual(delays, [2500]);
 });
 
 test('tag chips follow the live roster instead of a hardcoded list', () => {

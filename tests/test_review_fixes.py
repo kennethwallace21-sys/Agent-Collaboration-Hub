@@ -92,6 +92,75 @@ class IsolatedReviewTest(unittest.TestCase):
                     process.communicate(timeout=5)
 
 
+class OwnerIdentityAuthorizationTests(IsolatedReviewTest):
+    """A reserved human identity needs the workspace token, and a refusal reports a failure.
+
+    Regression coverage for two findings from the November 3 independent review: a
+    token-less post could be authored as the owner, and an authorization failure answered
+    HTTP 200. See docs/specs/001-product-spec.md FR-18 and FR-19.
+    """
+
+    def test_reserved_human_post_requires_the_owner_token(self):
+        denied = self.hub.op_post("human-director", "Token-less owner post")
+        self.assertFalse(denied["ok"])
+        self.assertEqual(denied["error_code"], self.hub.UNAUTHORIZED_CODE)
+
+        forged = self.hub.op_post("human-director", "Forged owner post", owner_token="forged-token")
+        self.assertFalse(forged["ok"])
+
+        accepted = self.hub.op_post(
+            "human-director", "Genuine owner post", owner_token=self.hub.get_owner_token())
+        self.assertTrue(accepted["ok"], accepted)
+
+        # A normal agent identity is unaffected by the reserved-identity rule.
+        self.assertTrue(self.hub.op_post("codex", "Peer post")["ok"])
+
+    def test_reserved_human_vote_requires_the_owner_token(self):
+        proposal = self.hub.op_propose("claude", "Adopt a policy", "Because the board needs one.")
+        decision_id = proposal["decision_id"]
+
+        denied = self.hub.op_vote(decision_id, "human-director", "approve")
+        self.assertFalse(denied["ok"])
+        self.assertEqual(denied["error_code"], self.hub.UNAUTHORIZED_CODE)
+
+        accepted = self.hub.op_vote(
+            decision_id, "human-director", "approve", owner_token=self.hub.get_owner_token())
+        self.assertTrue(accepted["ok"], accepted)
+
+        self.assertTrue(self.hub.op_vote(decision_id, "claude", "approve")["ok"])
+
+    def test_authorization_failure_reports_a_failure_status(self):
+        """A caller that branches on HTTP status must not see a success for a refusal."""
+        for endpoint, payload in (
+            ("/api/approve", {"entity_type": "decision", "entity_id": 1, "owner_token": "forged"}),
+            ("/api/post", {"sender": "human-director", "content": "no token"}),
+            ("/api/vote", {"decision_id": 1, "agent_id": "human-director", "vote": "approve"}),
+        ):
+            status, body = self.post_json(endpoint, payload)
+            self.assertEqual(status, 403, f"{endpoint} returned {status} for a refusal")
+            self.assertFalse(body["ok"], endpoint)
+
+    def post_json(self, path, payload):
+        """Drive one POST through the real request handler against the disposable board."""
+        import http.client
+        import threading
+
+        server = self.hub.ThreadingHTTPServer(("127.0.0.1", 0), self.hub.CollabHTTPRequestHandler)
+        server.daemon_threads = True
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            port = server.server_port
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+            connection.request(
+                "POST", path, body=json.dumps(payload),
+                headers={"Content-Type": "application/json", "Origin": f"http://127.0.0.1:{port}"})
+            response = connection.getresponse()
+            return response.status, json.loads(response.read().decode("utf-8"))
+        finally:
+            server.shutdown()
+            server.server_close()
+
+
 class DeliveryAuthorityTests(IsolatedReviewTest):
     def test_mcp_cannot_rewrite_command_target_via_alias_or_omitted_transport(self):
         self.alerts.register("review-target", via="command", target="synthetic-approved-command",

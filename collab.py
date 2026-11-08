@@ -62,6 +62,10 @@ VALID_TASK_STATUSES = (
 VALID_MODEL_PROVENANCE = ("runtime_observed", "agent_declared", "unknown")
 RESERVED_HUMAN_IDS = {"human", "human-director", "owner", "kenny", "kenny-wallace"}
 
+# Machine-readable marker for an authorization failure. HTTP routes map it to 403 so a
+# caller or a monitor can branch on the status instead of matching on prose.
+UNAUTHORIZED_CODE = "unauthorized"
+
 # Largest request body the dashboard API will read, in bytes.
 MAX_REQUEST_BYTES = 1048576
 # Upper bound on how long an error path waits for a body it is discarding.
@@ -1039,8 +1043,12 @@ def op_post(
     owner_token: str = "",
 ) -> dict:
     init_db()
-    if sender.lower() in RESERVED_HUMAN_IDS and owner_token and owner_token != get_owner_token():
-        return {"ok": False, "error": "Invalid owner token for reserved human identity"}
+    if sender.lower() in RESERVED_HUMAN_IDS and owner_token != get_owner_token():
+        return {
+            "ok": False,
+            "error": "Valid owner token required for reserved human identity",
+            "error_code": UNAUTHORIZED_CODE,
+        }
     channel = channel.lstrip("#") or "general"
     proj_id = project_id or "default"
     mentions = extract_mentions(content)
@@ -1568,6 +1576,12 @@ def op_vote(
 ) -> dict:
     """Record a peer advisory vote. Finalizing decision status requires owner authorization."""
     init_db()
+    if agent_id.lower() in RESERVED_HUMAN_IDS and owner_token != get_owner_token():
+        return {
+            "ok": False,
+            "error": "Valid owner token required for reserved human identity",
+            "error_code": UNAUTHORIZED_CODE,
+        }
     ts = now_iso()
     with get_db() as conn:
         touch_agent(conn, agent_id, session_id=session_id, preserve_primary_model=True)
@@ -1653,7 +1667,11 @@ def op_owner_approve(
 ) -> dict:
     """Bind a consequential owner approval to actor, action, scope, artifact revision, and nonce."""
     if not owner_token or owner_token != get_owner_token():
-        return {"ok": False, "error": "Valid owner authorization token is required"}
+        return {
+            "ok": False,
+            "error": "Valid owner authorization token is required",
+            "error_code": UNAUTHORIZED_CODE,
+        }
     if action not in ("approve", "approved", "reject", "rejected", "return", "returned"):
         return {"ok": False, "error": f"Invalid approval action: {action}"}
     normalized = (
@@ -2609,7 +2627,7 @@ class CollabHTTPRequestHandler(BaseHTTPRequestHandler):
                 model_provenance=body.get("model_provenance", ""),
                 owner_token=body.get("owner_token", ""),
             )
-            self._send_json(res)
+            self._send_json(res, 403 if res.get("error_code") == UNAUTHORIZED_CODE else 200)
             return
 
         if path == "/api/task/add":
@@ -2698,7 +2716,7 @@ class CollabHTTPRequestHandler(BaseHTTPRequestHandler):
                 owner_token=body.get("owner_token", ""),
                 session_id=body.get("session_id", ""),
             )
-            self._send_json(res)
+            self._send_json(res, 403 if res.get("error_code") == UNAUTHORIZED_CODE else 200)
             return
 
         if path == "/api/approve":
@@ -2715,7 +2733,7 @@ class CollabHTTPRequestHandler(BaseHTTPRequestHandler):
                 comment=body.get("comment", ""),
                 nonce=body.get("nonce", ""),
             )
-            self._send_json(res)
+            self._send_json(res, 403 if res.get("error_code") == UNAUTHORIZED_CODE else 200)
             return
 
         if path == "/api/project/create":

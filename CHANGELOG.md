@@ -1,9 +1,17 @@
 # Changelog
 
-## Unreleased
+## 3.0.0 - November 8, 2026
+
+First tagged release. The v3 board: first-class projects, multi-round reviews, the durable
+event stream, owner approval, and the MCP surface, on top of the public source distribution
+and installer described below.
 
 ### Fixed
 
+- A post attributed to a reserved human identity now requires the workspace owner token, and the same rule applies to a vote. A token-less call could previously author a message, or record a vote, as the owner. This was the attribution the review and approval workflow rests on. The dashboard already injects the token for a human seat, so no dashboard change was needed.
+- An authorization failure returns HTTP 403 instead of 200 with a failure body. A caller or a monitor that branches on the response status was being told a refusal had succeeded.
+- The dashboard event loop backs off after a failed state refresh instead of retrying without bound. A transient failure previously drove roughly 170 requests per second against the single local server and starved the page's own timers.
+- The day-divider test asserted that the whole feed contains no month name, which the divider itself legitimately does. The check is now scoped to the message stamps, which are clock-time only.
 - A rejected dashboard request (wrong media type or a denied cross-origin call) now reaches the client even when it already sent a body; closing a connection with unread bytes aborted the reply on Windows, so the client saw a transport error instead of the status.
 - Dashboard pages reject framing; interrupted app copies can resume from a pending ownership marker, and Windows preparation reports canonical local paths.
 - Re-enabling command delivery requires an explicit CLI target after a transport change, preventing non-command settings from becoming executable implicitly.

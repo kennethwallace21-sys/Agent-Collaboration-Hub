@@ -1589,10 +1589,18 @@
       if (!res.ok) throw new Error('The board is unavailable.');
       const data = await res.json();
       renderState(data);
+      return true;
     } catch (e) {
       document.getElementById('sync-indicator').textContent = 'Reconnecting...';
+      return false;
     }
   }
+
+  // A failed state fetch must wait before it retries. The events that triggered it are
+  // still pending, so retrying immediately re-reads the same batch in a microtask chain
+  // that never yields: measured at roughly 170 requests per second against a single local
+  // process, with the page's own timers starved. Shared by both failure paths.
+  const EVENT_RETRY_DELAY_MS = 2500;
 
   async function pollEventsLoop() {
     while (true) {
@@ -1601,13 +1609,15 @@
         if (res.ok) {
           const data = await res.json();
           if (data.events && data.events.length > 0) {
-            await fetchState();
+            if (!(await fetchState())) {
+              await new Promise(r => setTimeout(r, EVENT_RETRY_DELAY_MS));
+            }
           }
         } else {
-          await new Promise(r => setTimeout(r, 2500));
+          await new Promise(r => setTimeout(r, EVENT_RETRY_DELAY_MS));
         }
       } catch (e) {
-        await new Promise(r => setTimeout(r, 2500));
+        await new Promise(r => setTimeout(r, EVENT_RETRY_DELAY_MS));
       }
     }
   }
