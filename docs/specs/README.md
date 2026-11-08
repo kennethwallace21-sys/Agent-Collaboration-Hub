@@ -42,6 +42,23 @@ workspace and must not reach a public repository. See
 | 003 | Consultation, advisory, and model routing | Draft for owner review | Its reconciliation section names private repositories and their internal contents |
 | 004 | Azure cutover | Draft for owner review | Carries a subscription identifier, resource group names, and resource names |
 | 005 | Portfolio assessment | Draft for owner review | Enumerates every private repository and its state |
+| 006 | Commitments register | Living | Every dated obligation, standing prohibition, and open decision, so none becomes a false emergency |
+| n/a | `portfolio-index.md` | Generated | A live index of every repository and working folder. Rerun the tool; do not edit by hand |
+
+### Tools
+
+`scripts/portfolio_index.py` generates the portfolio index. It is an operator tool, not part
+of the shipped board, and it is deliberately absent from the installer's file list. It reads
+its sources from a local config (`portfolio-sources.json`, also local only), so no private
+namespace or owner is written into the tool itself.
+
+```sh
+py -3.12 scripts/portfolio_index.py --config docs/specs/portfolio-sources.json \
+    --output docs/specs/portfolio-index.md --json docs/specs/portfolio-index.json
+```
+
+An unreachable source is reported as unreachable rather than counted as empty, because "no
+repositories" and "could not ask" are different facts.
 
 If a private document needs a public counterpart, write the public one separately and leave
 the identifiers behind. Do not redact in place, because a later edit reintroduces them.
