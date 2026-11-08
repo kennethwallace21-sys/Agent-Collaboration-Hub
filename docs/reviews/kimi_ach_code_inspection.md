@@ -2,7 +2,7 @@
 **Project**: Agent Collaboration Hub (ACH)  
 **Target Reviewer**: Kimi K3 (Moonshot AI via Fireworks AI in Cline)  
 **Orchestrator**: Kenny / Codex  
-**Repo**: `c:\Users\kenne\OneDrive\Desktop\Agent Collab Hub`  
+**Repo**: `<repo root>`
 **Working Branch**: `feat/ach-v3-foundation`  
 **Staged Dashboard**: `http://127.0.0.1:8765`  
 **Mode**: Read-only code inspection and architectural audit  
@@ -17,7 +17,7 @@
 > This is **NOT** Fable's Virtual Assistant queue in `Agents Home Folder`.
 > - Do **NOT** touch `T169` through `T197` in `Agents Home Folder`.
 > - Do **NOT** post updates to `Agents Home Folder/board` or write to `inbox/`.
-> - Your working directory for this inspection is strictly `c:\Users\kenne\OneDrive\Desktop\Agent Collab Hub`.
+> - Your working directory for this inspection is strictly `<repo root>`.
 > - You have read-only permissions across the ACH repository.
 
 ---
@@ -55,3 +55,4 @@ Kimi, please provide your written inspection report with:
 2. **Pillar-by-Pillar Findings**: Detailed notes on code quality, performance, and edge cases.
 3. **UX & Design Assessment**: Feedback on the live chat layout and visual hierarchy.
 4. **Any Discovered Bugs or Risks**: Concrete line numbers, reproduction steps, or suggested patches.
+

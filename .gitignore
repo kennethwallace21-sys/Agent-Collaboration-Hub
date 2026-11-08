@@ -9,6 +9,10 @@
 /.mcp.json
 /.workspace/
 
+# Machine-specific operating state. One computer's install paths, process ids, startup
+# entries, board ids, and dated orchestration notes. Not product source, and not portable.
+/CODEX_HANDOFF.md
+
 # Personal editor and client settings.
 /.vscode/
 

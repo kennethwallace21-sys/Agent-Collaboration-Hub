@@ -11,7 +11,7 @@ disagree in detail:
 | --- | --- | --- |
 | `README.md` | Public framing and capability table | Marketing register, no requirement IDs, no acceptance criteria |
 | `docs/architecture.md` | What the code currently does | Descriptive, not normative. It cannot say a behavior is wrong |
-| `CODEX_HANDOFF.md` | One machine's operating state on one date | Operational, machine-specific, and self-labeled as superseded in sections |
+| `CODEX_HANDOFF.md` | One machine's operating state on one date | Operational and machine-specific. Local only since 3.0.0 and no longer in the repository, because it carries install paths, process ids, board ids, and dated orchestration notes |
 | `Agents Home Folder/AGENTS.md` | A predecessor PowerShell protocol (v2) | Different system, different stack, still in daily use for other projects |
 
 A specification states what the product must do. When code and a specification

@@ -88,7 +88,7 @@ def build_projects_bundle() -> list[dict]:
             "id": "website",
             "name": "Personal / Company Website",
             "description": "catalystappliedai.com website repository and reviews.",
-            "repo_path": r"C:\Users\kenne\Company_Website_live",
+            "repo_path": r"C:\path\to\website-repo",
             "status": "parked",
             "hold_reason": "",
             "policy": {"forbid_em_dash": True},
@@ -346,8 +346,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Migrate Agents Home Folder into ACH inertly.")
     parser.add_argument(
         "--source",
-        default=r"C:\Users\kenne\OneDrive\Desktop\Agents Home Folder",
-        help="Path to the Agents Home Folder source directory.",
+        required=True,
+        help="Path to the Agents Home Folder source directory. Required: this tool migrates "
+             "one specific folder, so it does not guess a default.",
     )
     parser.add_argument(
         "--verify-rehearsal",

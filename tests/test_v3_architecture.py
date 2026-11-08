@@ -626,6 +626,20 @@ class V3ArchitectureTests(unittest.TestCase):
         second = self.hub.op_import_history(bundle)
         self.assertTrue(all(v == 0 for v in second["imported"].values()))
 
+    def test_migrator_requires_an_explicit_source_and_carries_no_personal_path(self):
+        """The migration source must be named, and the shipped source names nobody's folder."""
+        mig_mod = load_source("migrate_agents_home_required", ROOT / "scripts" / "migrate_agents_home.py")
+        from contextlib import redirect_stderr
+
+        for argv in ([], ["--verify-rehearsal"]):
+            with self.assertRaises(SystemExit, msg=f"{argv} should require --source"):
+                with redirect_stderr(io.StringIO()):
+                    mig_mod.main(argv)
+
+        text = (ROOT / "scripts" / "migrate_agents_home.py").read_text(encoding="utf-8")
+        self.assertNotIn("Users\\kenne", text)
+        self.assertNotIn("Company_Website_live", text)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
