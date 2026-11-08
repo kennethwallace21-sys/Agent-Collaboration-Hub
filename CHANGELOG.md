@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+Preparing the tree for publication under the account actually in use, and removing the
+owner-specific data that a public repository should not carry.
+
+### Fixed
+
+- The dashboard composer no longer hardcodes one blocked path. It reads the active project's `forbidden_paths` policy, so the early warning and the server agree about which paths are blocked, which was the divergence behind finding F3 of the November 3 review.
+- The README pointed at a GitHub account that does not hold this repository. Both links now name the account that does.
+
+### Changed
+
+- `scripts/migrate_agents_home.py` ships a neutral example project bundle instead of one person's portfolio. The real bundle lives beside it as `migrate_projects.local.json`, which is gitignored and takes precedence, so behaviour on the machine that owns the data is unchanged. Message-to-project inference now matches the bundle's own project ids rather than a hardcoded keyword table, and the `--verify-rehearsal` policy checks are driven by whatever the bundle contains, reporting `null` when it has nothing to exercise.
+- Test fixtures no longer carry owner-specific project names or local development paths.
+
 ## 3.0.0 - November 8, 2026
 
 First tagged release. The v3 board: first-class projects, multi-round reviews, the durable

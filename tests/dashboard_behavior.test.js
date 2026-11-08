@@ -253,6 +253,37 @@ test('a failing state fetch backs off instead of retrying without bound', async 
   assert.deepEqual(delays, [2500]);
 });
 
+test('the composer blocks a path the active project forbids, and only that project', () => {
+  const ui = dashboard();
+  ui.context.renderState({
+    projects: [
+      { id: 'alpha', name: 'Alpha', status: 'active', policy_json: '{"forbidden_paths":["C:\\\\blocked\\\\area"]}' },
+      { id: 'beta', name: 'Beta', status: 'active', policy_json: '{}' },
+    ],
+    messages: [],
+  });
+  const composer = ui.document.getElementById('post-content');
+  const warn = ui.document.getElementById('composer-warning');
+
+  ui.context.selectProject('alpha');
+  composer.value = 'a note about C:\\blocked\\area\\file.txt';
+  assert.equal(ui.context.validateComposerDraft(), false, 'alpha forbids that path');
+  assert.equal(warn.hidden, false);
+
+  composer.value = 'a harmless note';
+  assert.equal(ui.context.validateComposerDraft(), true);
+  assert.equal(warn.hidden, true);
+
+  ui.context.selectProject('beta');
+  composer.value = 'a note about C:\\blocked\\area\\file.txt';
+  assert.equal(ui.context.validateComposerDraft(), true, 'beta does not forbid that path');
+
+  // The em-dash house rule is workspace-wide and still applies.
+  composer.value = 'an em dash \u2014 here';
+  assert.equal(ui.context.validateComposerDraft(), false);
+  assert.equal(warn.hidden, false);
+});
+
 test('tag chips follow the live roster instead of a hardcoded list', () => {
   const ui = dashboard();
   ui.context.renderState({

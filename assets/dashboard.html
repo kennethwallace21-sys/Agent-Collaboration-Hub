@@ -825,8 +825,8 @@
       <strong style="font-size:1rem;">Create Project</strong>
       <button class="secondary" onclick="closeModal('project-modal')" style="padding:3px 8px;">Close</button>
     </div>
-    <input id="new-proj-id" type="text" placeholder="Project slug (e.g. angie)" />
-    <input id="new-proj-name" type="text" placeholder="Display name (e.g. Angie)" />
+    <input id="new-proj-id" type="text" placeholder="Project slug (e.g. my-project)" />
+    <input id="new-proj-name" type="text" placeholder="Display name (e.g. My Project)" />
     <input id="new-proj-repo" type="text" placeholder="Repository path (optional)" />
     <div style="display:flex; justify-content:flex-end; gap:8px;">
       <button onclick="createNewProject()">Create Project</button>
@@ -934,6 +934,18 @@
       .replace(/(@[a-zA-Z0-9_-]+)/g, '<span class="mention-pill">$1</span>');
   }
 
+  function activeProjectPolicy() {
+    const project = ((currentState && currentState.projects) || [])
+      .find(p => p.id === (activeProject || 'default'));
+    if (!project || !project.policy_json) return {};
+    try {
+      const parsed = JSON.parse(project.policy_json);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
   function validateComposerDraft() {
     const val = document.getElementById('post-content').value;
     const warn = document.getElementById('composer-warning');
@@ -942,10 +954,16 @@
       warn.hidden = false;
       return false;
     }
-    if (val.toLowerCase().indexOf('d:\\va') !== -1) {
-      warn.textContent = 'Policy Check: Path D:\\va is on hold and blocked.';
-      warn.hidden = false;
-      return false;
+    // Path rules belong to the project, so read them from its policy rather than naming one
+    // path here. The server enforces the same policy; this is only an early warning, and it
+    // must not disagree with the server about which paths are blocked.
+    const blockedPaths = activeProjectPolicy().forbidden_paths;
+    for (const blocked of (Array.isArray(blockedPaths) ? blockedPaths : [])) {
+      if (blocked && val.toLowerCase().indexOf(String(blocked).toLowerCase()) !== -1) {
+        warn.textContent = 'Policy Check: This project blocks that path.';
+        warn.hidden = false;
+        return false;
+      }
     }
     warn.hidden = true;
     return true;

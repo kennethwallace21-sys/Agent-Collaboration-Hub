@@ -10,7 +10,7 @@
 [![MIT License](https://img.shields.io/badge/License-MIT-c6613f)](LICENSE)
 [![Local first](https://img.shields.io/badge/Local-first-50674C)](docs/security.md)
 
-[GitHub](https://github.com/kwallace12-chwy/Agent-Collaboration-Hub) · [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space) · [Report a problem](https://github.com/kwallace12-chwy/Agent-Collaboration-Hub/issues/new/choose)
+[GitHub](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub) · [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space) · [Report a problem](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub/issues/new/choose)
 
 A browser dashboard for you. **36 native MCP tools** for your agents. Messages, tasks, file locks, decisions, projects, review rounds, and inboxes share one workspace, with Python's standard library underneath.
 
@@ -20,7 +20,7 @@ A browser dashboard for you. **36 native MCP tools** for your agents. Messages, 
 
 ## Install in three steps
 
-1. **Download and extract** the source ZIP from [GitHub](https://github.com/kwallace12-chwy/Agent-Collaboration-Hub/archive/refs/heads/main.zip) or [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space/-/archive/main/ai-agent-collab-space-main.zip). Install [Python 3.10 or later](https://www.python.org/downloads/) if needed.
+1. **Download and extract** the source ZIP from [GitHub](https://github.com/kennethwallace21-sys/Agent-Collaboration-Hub/archive/refs/heads/main.zip) or [GitLab](https://gitlab.com/kennethwallace21-sys/ai-agent-collab-space/-/archive/main/ai-agent-collab-space-main.zip). Install [Python 3.10 or later](https://www.python.org/downloads/) if needed.
 2. **Run the installer** from a terminal in the extracted folder:
 
    ```sh

@@ -62,59 +62,49 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return meta, body
 
 
-def build_projects_bundle() -> list[dict]:
+# Site-specific project metadata is kept out of the repository. A public checkout carries a
+# neutral example; the real bundle lives beside this file as migrate_projects.local.json,
+# which is gitignored and takes precedence when it exists. This keeps one person's project
+# portfolio and local working paths out of a published tree.
+LOCAL_PROJECTS_FILE = Path(__file__).resolve().parent / "migrate_projects.local.json"
+
+
+def default_projects_bundle() -> list[dict]:
+    """A neutral example, so the tool works without carrying anybody's portfolio."""
     return [
         {
-            "id": "angie",
-            "name": "Angie",
-            "description": "Angie knowledge-steward product (Vite, React, TypeScript, Hono API on AWS).",
-            "repo_path": r"C:\dev\agents\cline\angie",
+            "id": "example-product",
+            "name": "Example Product",
+            "description": "Placeholder project. Provide a real bundle to migrate yours.",
+            "repo_path": r"C:\path\to\example-product",
             "status": "active",
             "hold_reason": "",
             "policy": {"forbid_em_dash": True, "require_independent_review": True},
             "shared_channels": ["general", "reviews", "tasks", "architecture"],
         },
         {
-            "id": "agents-home",
-            "name": "Agent Collab Hub",
-            "description": "Multi-agent collaboration system, protocol, and learning loop.",
-            "repo_path": str(ROOT),
-            "status": "active",
-            "hold_reason": "",
-            "policy": {"forbid_em_dash": True, "require_independent_review": True},
-            "shared_channels": ["general", "reviews", "tasks", "architecture"],
-        },
-        {
-            "id": "website",
-            "name": "Personal / Company Website",
-            "description": "catalystappliedai.com website repository and reviews.",
-            "repo_path": r"C:\path\to\website-repo",
+            "id": "example-parked",
+            "name": "Example Parked Project",
+            "description": "Placeholder, to show a non-active status in the bundle.",
+            "repo_path": r"C:\path\to\example-parked",
             "status": "parked",
             "hold_reason": "",
             "policy": {"forbid_em_dash": True},
             "shared_channels": ["general", "reviews", "tasks"],
         },
-        {
-            "id": "hcm",
-            "name": "HCM Platform",
-            "description": "CAAi HCM Platform (paused on AWS ECS).",
-            "repo_path": r"C:\dev\agents\bedrock\hcm-platform",
-            "status": "on_hold",
-            "hold_reason": "Paused by owner on 2026-10-30; no new HCM work dispatched.",
-            "policy": {"forbid_em_dash": True},
-            "shared_channels": ["general", "reviews", "tasks"],
-        },
-        {
-            "id": "virtual-assistant",
-            "name": "Virtual Assistant",
-            "description": "Local real-time voice assistant (on hold indefinitely per owner rule).",
-            "repo_path": r"C:\dev\agents\fable\virtual-assistant",
-            "status": "on_hold",
-            "hold_reason": "On hold indefinitely per owner rule; D:\\va is forbidden.",
-            "policy": {"forbid_em_dash": True, "forbidden_paths": [r"D:\va"]},
-            "shared_channels": ["general", "reviews", "tasks"],
-        },
     ]
+
+
+def build_projects_bundle() -> list[dict]:
+    """Prefer the local bundle, and fall back to the neutral example."""
+    if LOCAL_PROJECTS_FILE.is_file():
+        try:
+            data = json.loads(LOCAL_PROJECTS_FILE.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = None
+        if isinstance(data, list) and data:
+            return data
+    return default_projects_bundle()
 
 
 def build_agents_bundle(source_dir: Path) -> list[dict]:
@@ -211,24 +201,27 @@ def parse_tasks(source_dir: Path) -> tuple[list[dict], dict[str, str]]:
     return tasks_out, task_project_map
 
 
-def infer_message_project(meta: dict[str, str], body: str, task_project_map: dict[str, str]) -> str:
+def infer_message_project(meta: dict[str, str], body: str, task_project_map: dict[str, str],
+                          candidates: list[str] | None = None,
+                          default_project: str = "default") -> str:
+    """Match a message to a project by its task reference, then by the bundle's own ids.
+
+    The candidate list comes from the bundle rather than a hardcoded keyword table, so the
+    tool carries no particular project's vocabulary into a published tree.
+    """
     re_val = meta.get("re", "").upper()
     for match in re.findall(r"\bT\d{3,4}\b", re_val + " " + meta.get("subject", "").upper()):
         if match in task_project_map:
             return task_project_map[match]
     combined = (meta.get("subject", "") + " " + body[:300]).lower()
-    if "angie" in combined:
-        return "angie"
-    if "hcm" in combined or "frappe" in combined:
-        return "hcm"
-    if "website" in combined or "turnstile" in combined:
-        return "website"
-    if "virtual-assistant" in combined or "pipecat" in combined or "musetalk" in combined or "voicestudio" in combined:
-        return "virtual-assistant"
-    return "agents-home"
+    for candidate in candidates or []:
+        if candidate and candidate.lower() in combined:
+            return candidate
+    return default_project
 
 
-def parse_board_messages(source_dir: Path, task_project_map: dict[str, str]) -> list[dict]:
+def parse_board_messages(source_dir: Path, task_project_map: dict[str, str],
+                         project_ids: list[str] | None = None) -> list[dict]:
     board_dir = source_dir / "board"
     inbox_dir = source_dir / "inbox"
     msgs_out: list[dict] = []
@@ -256,7 +249,11 @@ def parse_board_messages(source_dir: Path, task_project_map: dict[str, str]) -> 
         content = f"{header_prefix}\n{body}".strip() if subject else body
         if not content:
             content = f"(Imported note {ext_id})"
-        proj = infer_message_project(meta, body, task_project_map)
+        proj = infer_message_project(
+            meta, body, task_project_map,
+            candidates=project_ids,
+            default_project=(project_ids or ["default"])[0],
+        )
         msgs_out.append(
             {
                 "external_id": ext_id,
@@ -327,9 +324,10 @@ def parse_lessons(source_dir: Path) -> list[dict]:
 
 def build_migration_bundle(source_dir: Path) -> dict:
     projects = build_projects_bundle()
+    project_ids = [p.get("id", "") for p in projects if p.get("id")]
     agents = build_agents_bundle(source_dir)
     tasks, task_project_map = parse_tasks(source_dir)
-    messages = parse_board_messages(source_dir, task_project_map)
+    messages = parse_board_messages(source_dir, task_project_map, project_ids)
     decisions = parse_audits(source_dir)
     lessons = parse_lessons(source_dir)
     return {
@@ -382,30 +380,47 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             aconn.close()
 
-        va_block_check = collab.op_task_add(
-            created_by="fable",
-            title="Test task on held VA project",
-            project_id="virtual-assistant",
-        )
-        d_va_block_check = collab.op_post(
-            sender="codex",
-            content=r"Attempting to touch D:\va\tmp in active project",
-            project_id="virtual-assistant",
-        )
-        em_dash_block_check = collab.op_post(
-            sender="codex",
-            content="Testing em dash \u2014 in angie project",
-            project_id="angie",
-        )
+        # Policy checks are driven by the bundle, so this rehearsal carries no particular
+        # project's names. Each check is skipped and reported as null when the bundle has
+        # nothing to exercise.
+        held = next((p for p in bundle["projects"]
+                     if str(p.get("status", "")).lower() in {"on_hold", "paused", "archived"}), None)
+        with_paths = next((p for p in bundle["projects"]
+                           if (p.get("policy") or {}).get("forbidden_paths")), None)
+        with_rule = next((p for p in bundle["projects"]
+                          if (p.get("policy") or {}).get("forbid_em_dash")), None)
+
+        hold_check = None
+        if held:
+            hold_check = collab.op_task_add(
+                created_by="rehearsal",
+                title="Rehearsal task against a held project",
+                project_id=held["id"],
+            )
+        path_check = None
+        if with_paths:
+            blocked_path = str(with_paths["policy"]["forbidden_paths"][0])
+            path_check = collab.op_post(
+                sender="rehearsal",
+                content=f"Rehearsal post naming a forbidden path: {blocked_path}",
+                project_id=with_paths["id"],
+            )
+        rule_check = None
+        if with_rule:
+            rule_check = collab.op_post(
+                sender="rehearsal",
+                content="Rehearsal post containing an em dash \u2014 to exercise the rule",
+                project_id=with_rule["id"],
+            )
 
         report["second_pass_imported"] = second_pass["imported"]
         report["idempotent_zero_duplicates"] = all(v == 0 for v in second_pass["imported"].values())
         report["queued_alerts_after_scan"] = int(queued_alerts)
         report["inert_zero_wakes_verified"] = int(queued_alerts) == 0
         report["policy_checks"] = {
-            "virtual_assistant_hold_enforced": not va_block_check.get("ok", True),
-            "d_va_forbidden_path_enforced": not d_va_block_check.get("ok", True),
-            "em_dash_ban_enforced": not em_dash_block_check.get("ok", True),
+            "held_project_blocks_new_tasks": None if hold_check is None else not hold_check.get("ok", True),
+            "forbidden_path_blocked": None if path_check is None else not path_check.get("ok", True),
+            "em_dash_ban_enforced": None if rule_check is None else not rule_check.get("ok", True),
         }
 
     print(json.dumps(report, indent=2))

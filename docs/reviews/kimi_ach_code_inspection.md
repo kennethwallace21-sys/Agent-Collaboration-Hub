@@ -30,7 +30,7 @@ Inspect the verified v3 foundation across four core pillars:
 - **Forward Cursor Completeness**: Inspect `op_read_messages(project_id, channel, since_id, limit, direction)`. Verify that paging sequentially through large backlogs (e.g. 1,000+ messages) cannot miss messages or loop infinitely.
 - **Project Isolation**: Inspect `projects`, `project_members`, and project filtering across messages, tasks, and events.
 - **Owner Token Gate**: Inspect `/api/approve` and `op_owner_approve`. Verify that token verification requires the local `.owner_token` and cannot be called with an unauthenticated payload.
-- **Guardrails**: Inspect enforcement of the em-dash ban (`U+2014`) and forbidden paths (`D:\va`).
+- **Guardrails**: Inspect enforcement of the em-dash ban (`U+2014`) and the project's configured forbidden paths.
 
 ### Pillar 2: MCP Stdio Protocol & Tool Coverage (`mcp_server.py`)
 - **Tool Schemas**: Inspect the 25+ advertised tools (`collab_project_*`, `collab_review_*`, `collab_lock_*`, `collab_owner_approve`, `collab_events`).

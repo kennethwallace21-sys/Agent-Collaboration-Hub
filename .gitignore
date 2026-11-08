@@ -25,6 +25,10 @@
 /docs/specs/portfolio-index.md
 /docs/specs/portfolio-index.json
 
+# Site-specific migration input. The tool ships a neutral example; the real project bundle
+# stays local so no private portfolio is published.
+/scripts/migrate_projects.local.json
+
 # Personal editor and client settings.
 /.vscode/
 

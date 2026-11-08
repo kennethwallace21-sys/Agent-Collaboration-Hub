@@ -112,52 +112,52 @@ class V3ArchitectureTests(unittest.TestCase):
 
     def test_first_class_projects_isolation_and_policies(self):
         va = self.hub.op_project_create(
-            "virtual-assistant",
-            "Virtual Assistant",
-            repo_path=r"C:\dev\agents\fable\virtual-assistant",
+            "sample-product",
+            "Sample Product",
+            repo_path=r"C:\path\to\sample-product",
             status="active",
-            policy={"forbidden_paths": [r"D:\va"], "forbid_em_dash": True},
+            policy={"forbidden_paths": [r"C:\path\to\forbidden"], "forbid_em_dash": True},
             shared_channels=["announcements"],
         )
         self.assertTrue(va["ok"])
 
-        hcm = self.hub.op_project_create(
-            "hcm",
-            "HCM Platform",
-            repo_path=r"C:\dev\agents\bedrock\hcm-platform",
+        held = self.hub.op_project_create(
+            "sample-held",
+            "Sample Held Product",
+            repo_path=r"C:\path\to\sample-held",
             status="on_hold",
-            hold_reason="Owner hold 2026-10-30; dev-hcm scaled to 0",
+            hold_reason="Sample hold, to exercise the on-hold gate",
         )
-        self.assertTrue(hcm["ok"])
+        self.assertTrue(held["ok"])
 
         # Task creation on an ON_HOLD project is blocked by default
-        blocked_task = self.hub.op_task_add("fable", "Run terragrunt", project_id="hcm")
+        blocked_task = self.hub.op_task_add("fable", "Run the deploy", project_id="sample-held")
         self.assertFalse(blocked_task["ok"])
         self.assertIn("ON HOLD", blocked_task["error"])
 
-        # Forbidden path (D:\va) and em-dash policy enforced in virtual-assistant
-        bad_post = self.hub.op_post("codex", r"Reading voice sample from D:\va\raw.wav", project_id="virtual-assistant")
+        # Forbidden path and em-dash policy enforced in sample-product
+        bad_post = self.hub.op_post("codex", r"Reading a file from C:\path\to\forbidden\raw.wav", project_id="sample-product")
         self.assertFalse(bad_post["ok"])
-        self.assertIn("D:\\va", bad_post["error"])
+        self.assertIn(r"C:\path\to\forbidden", bad_post["error"])
 
-        em_dash_post = self.hub.op_post("codex", "No em dash allowed \u2014 here", project_id="virtual-assistant")
+        em_dash_post = self.hub.op_post("codex", "No em dash allowed \u2014 here", project_id="sample-product")
         self.assertFalse(em_dash_post["ok"])
         self.assertIn("em dash", em_dash_post["error"])
 
         # Valid scoped posts and tasks stay isolated between projects
-        self.hub.op_post("fable", "VA sprint update", channel="general", project_id="virtual-assistant")
+        self.hub.op_post("fable", "VA sprint update", channel="general", project_id="sample-product")
         self.hub.op_post("fable", "Default board note", channel="general", project_id="default")
         self.hub.op_post("fable", "Cross-project notice", channel="announcements", project_id="default")
 
-        va_msgs = self.mcp.t_read(project_id="virtual-assistant", limit=20)["messages"]
+        va_msgs = self.mcp.t_read(project_id="sample-product", limit=20)["messages"]
         self.assertEqual([m["content"] for m in va_msgs], ["VA sprint update", "Cross-project notice"])
 
         # Archive and restore preserve references
-        self.hub.op_project_update("virtual-assistant", status="archived")
-        archived_attempt = self.hub.op_post("fable", "While archived", project_id="virtual-assistant")
+        self.hub.op_project_update("sample-product", status="archived")
+        archived_attempt = self.hub.op_post("fable", "While archived", project_id="sample-product")
         self.assertFalse(archived_attempt["ok"])
-        self.hub.op_project_update("virtual-assistant", status="active")
-        restored_attempt = self.hub.op_post("fable", "After restore", project_id="virtual-assistant")
+        self.hub.op_project_update("sample-product", status="active")
+        restored_attempt = self.hub.op_post("fable", "After restore", project_id="sample-product")
         self.assertTrue(restored_attempt["ok"])
 
     def test_concurrent_sessions_preserve_distinct_model_attribution(self):
@@ -326,12 +326,12 @@ class V3ArchitectureTests(unittest.TestCase):
 
     def test_inert_historical_import_triggers_zero_alerts_and_is_idempotent(self):
         bundle = {
-            "projects": [{"id": "virtual-assistant", "name": "Virtual Assistant", "status": "active"}],
+            "projects": [{"id": "sample-product", "name": "Sample Product", "status": "active"}],
             "agents": [{"id": "fable", "model": "claude-opus-5-5", "role": "Orchestrator"}],
             "tasks": [
                 {
                     "external_id": "T148",
-                    "project_id": "virtual-assistant",
+                    "project_id": "sample-product",
                     "title": "VA Product Docs",
                     "status": "assigned",
                     "owner": "codex",
@@ -341,7 +341,7 @@ class V3ArchitectureTests(unittest.TestCase):
             "messages": [
                 {
                     "external_id": "20261031T164529Z-fable",
-                    "project_id": "virtual-assistant",
+                    "project_id": "sample-product",
                     "channel": "general",
                     "sender": "fable",
                     "content": "@codex @gemini @opus-bedrock historical broadcast",
@@ -443,39 +443,39 @@ class V3ArchitectureTests(unittest.TestCase):
             self.assertTrue(schema["properties"], name)
 
         created = self.call("collab_project_create", {
-            "project_id": "virtual-assistant", "name": "Virtual Assistant", "created_by": "fable",
+            "project_id": "sample-product", "name": "Sample Product", "created_by": "fable",
             "status": "active", "policy": {"forbid_em_dash": True}, "shared_channels": ["announcements"],
         })
-        self.assertEqual((created["project_id"], created["status"]), ("virtual-assistant", "active"))
+        self.assertEqual((created["project_id"], created["status"]), ("sample-product", "active"))
         assigned = self.call("collab_project_assign", {
-            "project_id": "virtual-assistant", "agent_id": "codex", "role": "implementer",
+            "project_id": "sample-product", "agent_id": "codex", "role": "implementer",
         })
         self.assertEqual(assigned["role"], "implementer")
         listed = self.call("collab_project_list", {})
-        self.assertEqual([p["id"] for p in listed["projects"]], ["default", "virtual-assistant"])
-        virtual_assistant = next(p for p in listed["projects"] if p["id"] == "virtual-assistant")
-        self.assertEqual([m["agent_id"] for m in virtual_assistant["members"]], ["codex"])
+        self.assertEqual([p["id"] for p in listed["projects"]], ["default", "sample-product"])
+        sample_product = next(p for p in listed["projects"] if p["id"] == "sample-product")
+        self.assertEqual([m["agent_id"] for m in sample_product["members"]], ["codex"])
 
         # An on-hold project refuses new work even through the MCP task tool.
         held = self.call("collab_project_update", {
-            "project_id": "virtual-assistant", "actor": "human", "status": "on_hold",
+            "project_id": "sample-product", "actor": "human", "status": "on_hold",
             "hold_reason": "Owner hold",
         })
         self.assertEqual(held["status"], "on_hold")
         self.assertIn("ON HOLD", self.call_expecting_failure("collab_task_add", {
-            "created_by": "fable", "title": "Blocked work", "project_id": "virtual-assistant",
+            "created_by": "fable", "title": "Blocked work", "project_id": "sample-product",
         }))
 
         # An omitted field keeps its previous value, and archived projects stay hidden by default.
         archived = self.call("collab_project_update", {
-            "project_id": "virtual-assistant", "actor": "human", "status": "archived",
+            "project_id": "sample-product", "actor": "human", "status": "archived",
         })
         self.assertEqual(archived["status"], "archived")
         self.assertEqual([p["id"] for p in self.call("collab_project_list", {})["projects"]], ["default"])
         archived_rows = self.call("collab_project_list", {"include_archived": True})["projects"]
-        self.assertEqual([p["id"] for p in archived_rows], ["default", "virtual-assistant"])
+        self.assertEqual([p["id"] for p in archived_rows], ["default", "sample-product"])
         self.assertEqual(
-            next(p for p in archived_rows if p["id"] == "virtual-assistant")["hold_reason"], "Owner hold"
+            next(p for p in archived_rows if p["id"] == "sample-product")["hold_reason"], "Owner hold"
         )
 
         # Reviews keep one round per submission, so Round 1 survives Round 2.
@@ -511,20 +511,20 @@ class V3ArchitectureTests(unittest.TestCase):
 
         # One orchestrator dispatches a project's work at a time.
         acquired = self.call("collab_orchestrator_lock", {
-            "project_id": "virtual-assistant", "agent_id": "fable", "session_id": "sess-fable",
+            "project_id": "sample-product", "agent_id": "fable", "session_id": "sess-fable",
         })
         self.assertEqual(acquired["holder_agent"], "fable")
         self.assertIn("already held", self.call_expecting_failure("collab_orchestrator_lock", {
-            "project_id": "virtual-assistant", "agent_id": "codex", "session_id": "sess-codex",
+            "project_id": "sample-product", "agent_id": "codex", "session_id": "sess-codex",
         }))
         self.assertEqual(
             self.call("collab_orchestrator_lock", {
-                "project_id": "virtual-assistant", "action": "status",
+                "project_id": "sample-product", "action": "status",
             })["lock"]["holder_agent"],
             "fable",
         )
         self.assertTrue(self.call("collab_orchestrator_lock", {
-            "project_id": "virtual-assistant", "agent_id": "fable", "session_id": "sess-fable",
+            "project_id": "sample-product", "agent_id": "fable", "session_id": "sess-fable",
             "action": "release",
         })["released"])
 
@@ -600,7 +600,7 @@ class V3ArchitectureTests(unittest.TestCase):
             encoding="utf-8",
         )
         (synth_dir / "tasks" / "T001.md").write_text(
-            "---\nid: T001\nproject: angie\ntitle: Initial Task\nlane: codex\nstatus: DELIVERED\n---\nBody\n",
+            "---\nid: T001\nproject: sample-product\ntitle: Initial Task\nlane: codex\nstatus: DELIVERED\n---\nBody\n",
             encoding="utf-8",
         )
         (synth_dir / "board" / "20261031T000000Z-fable-test.md").write_text(
@@ -614,9 +614,13 @@ class V3ArchitectureTests(unittest.TestCase):
         (synth_dir / "audits" / "2026-10-15.md").write_text("# Audit 1\nPassed.\n", encoding="utf-8")
 
         bundle = mig_mod.build_migration_bundle(synth_dir)
+        # The project bundle is local-only, so assert against what the tool resolves rather
+        # than a fixed number that would differ between a checkout with and without it.
+        expected_projects = len(mig_mod.build_projects_bundle())
+        self.assertGreaterEqual(expected_projects, 1)
         first = self.hub.op_import_history(bundle)
         self.assertTrue(first["ok"])
-        self.assertEqual(first["imported"]["projects"], 5)
+        self.assertEqual(first["imported"]["projects"], expected_projects)
         self.assertEqual(first["imported"]["tasks"], 1)
         self.assertEqual(first["imported"]["messages"], 1)
         self.assertEqual(first["imported"]["decisions"], 1)
@@ -638,7 +642,9 @@ class V3ArchitectureTests(unittest.TestCase):
 
         text = (ROOT / "scripts" / "migrate_agents_home.py").read_text(encoding="utf-8")
         self.assertNotRegex(text, r"[Cc]:\\Users\\", "shipped source must not name a personal folder")
-        self.assertIn(r"C:\path\to\website-repo", text, "the sample keeps an obvious placeholder")
+        self.assertIn(r"C:\path\to\example-product", text, "the neutral example is present")
+        self.assertIn("migrate_projects.local.json", text, "the local bundle is the override")
+        self.assertIn("default_projects_bundle", text, "the neutral default exists")
 
 
 if __name__ == "__main__":
