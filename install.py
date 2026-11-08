@@ -88,6 +88,8 @@ def install(install_dir: Path, workspace: Path, desktop_dir: Path | None, *, sou
         raise ValueError("Incomplete source checkout; missing: " + ", ".join(missing))
     files = list(REQUIRED) + [name for name in OPTIONAL if (source / name).is_file()]
     files += [str(path.relative_to(source)) for path in sorted((source / "docs").glob("*.md"))]
+    files += [str(path.relative_to(source)) for path in sorted((source / "docs").glob("*/*.md"))
+              if path.is_file()]
     files += [str(path.relative_to(source)) for path in sorted((source / "docs" / "images").glob("*"))
               if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".svg"}]
     files += [str(path.relative_to(source)) for path in sorted((source / "examples").rglob("*"))
