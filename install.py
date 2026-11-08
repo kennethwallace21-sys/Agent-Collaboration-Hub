@@ -23,6 +23,7 @@ REQUIRED = ("collab.py", "alerts.py", "ask.py", "mcp_server.py", "advisory.py", 
 OPTIONAL = ("README.md", "LICENSE", "AGENTS.md", "CLAUDE.md", "ADVISORY.md", "PM.md", "install.py",
             "SECURITY.md", "CHANGELOG.md", "CONTRIBUTING.md",
             "collab", "alerts", "ask", "advisory", "scripts/demo.py", "scripts/migrate_agents_home.py",
+            "scripts/portfolio_index.py",
             "assets/app-icon.svg", "assets/app-icon-256.png", "assets/app-icon-512.png",
             "assets/app-icon.icns", "assets/app-icon.ico")
 POSIX_ENTRYPOINTS = {"collab", "alerts", "ask", "advisory"}

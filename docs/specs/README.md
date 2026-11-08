@@ -47,10 +47,10 @@ workspace and must not reach a public repository. See
 
 ### Tools
 
-`scripts/portfolio_index.py` generates the portfolio index. It is an operator tool, not part
-of the shipped board, and it is deliberately absent from the installer's file list. It reads
-its sources from a local config (`portfolio-sources.json`, also local only), so no private
-namespace or owner is written into the tool itself.
+`scripts/portfolio_index.py` generates the portfolio index. It is an operator tool rather
+than part of the board, but it ships with the app so that this reference resolves. It reads
+its sources from a local config (`portfolio-sources.json`, which is local only), so no
+private namespace or owner is written into the tool itself.
 
 ```sh
 py -3.12 scripts/portfolio_index.py --config docs/specs/portfolio-sources.json \
