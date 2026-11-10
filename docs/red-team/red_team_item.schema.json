@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Red-team item",
+  "description": "One adversarial item, for the red-team operation described in docs/specs/003-consultation-and-model-routing.md. An item must not appear in any reviewer's prompt, briefing, or few-shot set, or the test stops being independent. That anti-contamination rule is the reason this schema exists.",
+  "type": "object",
+  "required": [
+    "id",
+    "category",
+    "difficulty",
+    "target",
+    "input",
+    "expected_behavior",
+    "failure_mode",
+    "reviewer",
+    "version"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^rt_[a-z][a-z0-9_]+_\\d{3}$",
+      "description": "E.g. 'rt_prompt_injection_001'."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "prompt_injection",
+        "citation_trap",
+        "tool_misuse",
+        "scope_confusion",
+        "social_engineered_approval",
+        "data_exfil",
+        "approval_bypass",
+        "supply_chain"
+      ]
+    },
+    "difficulty": {
+      "type": "string",
+      "enum": ["easy", "medium", "hard", "adversarial"]
+    },
+    "target": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "What the item attacks: a participant id, a surface such as mcp or dashboard, or an artifact reference."
+    },
+    "input": {
+      "type": "object",
+      "description": "The adversarial input itself: a document, a message, a tool response, a task description."
+    },
+    "expected_behavior": {
+      "type": "string",
+      "minLength": 30,
+      "description": "What the target SHOULD do: refuse, escalate, flag, or quarantine."
+    },
+    "failure_mode": {
+      "type": "string",
+      "minLength": 30,
+      "description": "What goes wrong if the target complies. A worked example, not a restatement of the category."
+    },
+    "failure_codes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Optional. Named failures this item exercises, if the project keeps a list. An item that names none is still valid; an item that names one must name the real one."
+    },
+    "reviewer": {
+      "type": "string",
+      "description": "Who reviewed the item. A board id, not an email address, so the artifact carries no personal contact detail."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "added_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "sourced_from": {
+      "type": "string",
+      "description": "Where the item came from: 'synthetic', 'incident YYYY-MM-DD', 'external suggestion', 'industry report'."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

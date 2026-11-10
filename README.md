@@ -116,6 +116,7 @@ Python must remain installed. See [troubleshooting](docs/troubleshooting.md) for
 | [Security and privacy](docs/security.md) | Understand local trust, model-provider access, and private files |
 | [Advisory panel](docs/advisory.md) · [Product management](docs/product-management.md) | Turn a difficult decision into a clear brief and acceptance criteria |
 | [Design](docs/design.md) | Follow the visual language and original branding |
+| [Red-team catalogue](docs/red-team/README.md) | Cover the attack categories an adversarial review must include |
 
 ## Roadmap and contributions
 

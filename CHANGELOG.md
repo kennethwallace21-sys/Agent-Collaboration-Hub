@@ -15,6 +15,10 @@ owner-specific data that a public repository should not carry.
 - `scripts/migrate_agents_home.py` ships a neutral example project bundle instead of one person's portfolio. The real bundle lives beside it as `migrate_projects.local.json`, which is gitignored and takes precedence, so behaviour on the machine that owns the data is unchanged. Message-to-project inference now matches the bundle's own project ids rather than a hardcoded keyword table, and the `--verify-rehearsal` policy checks are driven by whatever the bundle contains, reporting `null` when it has nothing to exercise.
 - Test fixtures no longer carry owner-specific project names or local development paths.
 
+### Added
+
+- A red-team catalogue under `docs/red-team/`: the eight attack categories an adversarial review must cover, and a JSON schema for one item. The schema requires a failure mode of at least thirty characters, so an item that restates its own category is rejected, and it records a reviewer as a board id rather than an email address. Catalogue only; nothing executes yet.
+
 ## 3.0.0 - November 8, 2026
 
 First tagged release. The v3 board: first-class projects, multi-round reviews, the durable
