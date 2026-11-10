@@ -19,6 +19,7 @@
 /docs/specs/004-azure-cutover.md
 /docs/specs/005-portfolio-assessment.md
 /docs/specs/006-commitments-register.md
+/docs/specs/007-orchestrator-brief.md
 
 # Generated or local-only portfolio tooling input and output.
 /docs/specs/portfolio-sources.json
